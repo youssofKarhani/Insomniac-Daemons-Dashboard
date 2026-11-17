@@ -1,0 +1,211 @@
+/**
+ * Inspector copy for every object in the scene. Public-safe: no account,
+ * resource or network identifiers, no URLs of the platform.
+ */
+export const OBJECT_IDS = [
+  "clock",
+  "gateway",
+  "lambda",
+  "workflowQueue",
+  "workflowDlq",
+  "gpuQueue",
+  "gpuDlq",
+  "keda",
+  "controlPlane",
+  "pods",
+  "laya",
+  "watchdog",
+  "autoscaler",
+  "gpuNode",
+  "guard",
+  "modelVolume",
+  "vllm",
+  "s3",
+  "ssm",
+  "vpc",
+] as const;
+
+export type ObjectId = (typeof OBJECT_IDS)[number];
+
+export interface ObjectInfo {
+  name: string;
+  aws: string;
+  object: string;
+  plain: string;
+  engineer: string[];
+  alwaysOn: boolean;
+}
+
+export const OBJECTS: Record<ObjectId, ObjectInfo> = {
+  clock: {
+    name: "Morning pre-warm",
+    aws: "Amazon EventBridge schedule",
+    object: "Desk clock",
+    plain: "Every morning at 06:55 UTC the clock taps the switch so the platform is awake before the day's scheduled jobs.",
+    engineer: ["Cron rule targets the wake Lambda.", "Wakes the control plane even when no job is waiting; the watchdog puts it back to sleep if nothing arrives."],
+    alwaysOn: true,
+  },
+  gateway: {
+    name: "Front door",
+    aws: "Amazon API Gateway (HTTP API)",
+    object: "Arch with four route lights",
+    plain: "Where every request comes in. It is always open and costs nothing while nobody calls it.",
+    engineer: ["Routes: /jobs, /wake, /status, /health, all proxied to one Lambda.", "Serverless, so it is reachable even while every server is off."],
+    alwaysOn: true,
+  },
+  lambda: {
+    name: "Wake switch",
+    aws: "AWS Lambda (Python 3.12)",
+    object: "Relay switch",
+    plain: "A tiny function that files the job in the queue and, if the platform is asleep, switches it on.",
+    engineer: [
+      "SendMessage to the workflow queue; payloads over 128 KB go to S3 first.",
+      "StartInstances on the control plane if it is stopped, and resumes GPU launches.",
+      "Also handles the EC2 stop guard (see the latch on the GPU cradle).",
+    ],
+    alwaysOn: true,
+  },
+  workflowQueue: {
+    name: "Inbox",
+    aws: "Amazon SQS (workflow queue)",
+    object: "Sorter tray",
+    plain: "Jobs wait here safely, even while everything else is switched off.",
+    engineer: ["Standard queue, visibility timeout 300 s.", "Messages are only deleted after the result is stored, so a crash never loses a job."],
+    alwaysOn: true,
+  },
+  workflowDlq: {
+    name: "Inbox dead letters",
+    aws: "Amazon SQS dead-letter queue",
+    object: "Bin under the inbox",
+    plain: "A job that keeps failing ends up here instead of blocking the others.",
+    engineer: ["Redrive after 3 receives (maxReceiveCount = 3).", "Retention 14 days."],
+    alwaysOn: true,
+  },
+  gpuQueue: {
+    name: "GPU queue",
+    aws: "Amazon SQS (GPU inference queue)",
+    object: "Violet tray at the bridge",
+    plain: "Only jobs that really need the big model come here. Anything waiting here is what makes the GPU wake up.",
+    engineer: ["Separate queue so CPU-only work never triggers GPU scaling.", "Visibility timeout 360 s; the worker extends it every 30 s while the GPU starts."],
+    alwaysOn: true,
+  },
+  gpuDlq: {
+    name: "GPU dead letters",
+    aws: "Amazon SQS dead-letter queue",
+    object: "Bin under the GPU tray",
+    plain: "Where a GPU job goes after three failed tries.",
+    engineer: ["Redrive after 3 receives.", "Spot reclaims and gateway errors count as receives."],
+    alwaysOn: true,
+  },
+  keda: {
+    name: "GPU demand lever",
+    aws: "KEDA ScaledObject",
+    object: "Lever beside the GPU tray",
+    plain: "Watches the GPU queue. When work appears it asks for one model server; when the queue has been quiet for two minutes it asks for none.",
+    engineer: ["Polls every 15 s, counts in-flight messages too.", "Scales the vLLM Deployment between 0 and 1 replicas.", "Cooldown 120 s."],
+    alwaysOn: false,
+  },
+  controlPlane: {
+    name: "Control tower",
+    aws: "Amazon EC2 + K3s",
+    object: "Tower",
+    plain: "A small, cheap server that runs the platform's brain. It sleeps when there is nothing to do and is woken by the switch.",
+    engineer: ["Single-node K3s cluster in the first Availability Zone.", "Stopped (not terminated) when idle, so it keeps its disk and boots in about a minute."],
+    alwaysOn: false,
+  },
+  pods: {
+    name: "Platform services",
+    aws: "Kubernetes pods",
+    object: "Modules on the tower roof",
+    plain: "The programs that take jobs from the inbox, talk to the models and keep records.",
+    engineer: ["FastAPI orchestrator, AI worker (two polling loops), LiteLLM gateway.", "Shown as inferred until an in-cluster exporter reports pod readiness."],
+    alwaysOn: false,
+  },
+  laya: {
+    name: "LAYA checkpoint",
+    aws: "LAYA decision service (ModernBERT on CPU)",
+    object: "Scanner gate",
+    plain: "A fast, cheap model that decides whether a job is worth the big GPU at all, and afterwards checks the big model's answer.",
+    engineer: [
+      "Relevance gate before the GPU: below 0.35 the job is rejected and the GPU never wakes.",
+      "Decision-only jobs are answered here entirely on CPU.",
+      "Verifies each output (pass at 0.40); failures trigger a bounded regeneration, then 'needs review'.",
+    ],
+    alwaysOn: false,
+  },
+  watchdog: {
+    name: "Idle timer",
+    aws: "systemd timer on the control plane",
+    object: "Dial on the tower",
+    plain: "After 30 quiet minutes it turns the tower off.",
+    engineer: ["Idle means both queues empty, no leases, no pending outbox, GPU group at zero.", "Scales the GPU group to 0 before shutting down."],
+    alwaysOn: false,
+  },
+  autoscaler: {
+    name: "Capacity arm",
+    aws: "Kubernetes Cluster Autoscaler",
+    object: "Arm from tower to cradle",
+    plain: "When the model server has nowhere to run, it orders a GPU machine. When the machine is no longer needed, it sends it away.",
+    engineer: ["Sees the pending GPU pod and sets the Auto Scaling group to 1.", "Removes the node after 2 minutes unneeded."],
+    alwaysOn: false,
+  },
+  gpuNode: {
+    name: "GPU cassette",
+    aws: "EC2 Auto Scaling group, g5.xlarge (NVIDIA A10G 24 GB)",
+    object: "Cradle and cassette",
+    plain: "The expensive part. It only exists while there is GPU work, then it is handed back.",
+    engineer: [
+      "Group size 0 to 1, pinned to the second Availability Zone because the model disk lives there.",
+      "Launches On-Demand today; Spot is configured but blocked by an organisation policy.",
+    ],
+    alwaysOn: false,
+  },
+  guard: {
+    name: "Stop guard",
+    aws: "Amazon EventBridge rule (EC2 state change)",
+    object: "Latch on the cradle",
+    plain: "A second safety: when the tower switches off, this latch makes sure no GPU can start.",
+    engineer: ["On control-plane stopping/stopped, the Lambda sets the GPU group to 0 and suspends Launch.", "Released again when the tower is woken."],
+    alwaysOn: true,
+  },
+  modelVolume: {
+    name: "Model drive",
+    aws: "Amazon EBS gp3, 50 GB",
+    object: "Indigo drive with two slots",
+    plain: "Keeps the model files between visits so a new GPU machine does not download 18 GB every time.",
+    engineer: ["Holds qwen-general (loaded) and qwen-coder (parked).", "Attached at boot; same Availability Zone as the GPU."],
+    alwaysOn: true,
+  },
+  vllm: {
+    name: "Model core",
+    aws: "vLLM serving Qwen3-30B-A3B (AWQ 4-bit)",
+    object: "Core inside the cassette",
+    plain: "The large language model itself. It fills up as the model loads and glows while it writes.",
+    engineer: ["One model resident at a time in 24 GB of VRAM.", "Reached through the LiteLLM gateway on the control plane."],
+    alwaysOn: false,
+  },
+  s3: {
+    name: "Archive",
+    aws: "Amazon S3",
+    object: "Open crate",
+    plain: "Finished results are filed here.",
+    engineer: ["outputs/ holds results; inputs/ holds large payloads and expires after 30 days.", "The twin only ever sees object keys, never contents."],
+    alwaysOn: true,
+  },
+  ssm: {
+    name: "Operator console",
+    aws: "AWS Systems Manager Session Manager",
+    object: "Terminal at the desk edge",
+    plain: "How the owner reaches the servers without opening any ports.",
+    engineer: ["Port forwarding over SSM; no SSH, no inbound rules.", "The twin shows only whether a session is open."],
+    alwaysOn: true,
+  },
+  vpc: {
+    name: "Network",
+    aws: "Amazon VPC, two subnets, two Availability Zones",
+    object: "The two platforms",
+    plain: "Two separate rooms in the same building. The tower lives in one, the GPU in the other.",
+    engineer: ["Public subnets with an internet gateway, no NAT gateway.", "The GPU is pinned to the second zone because EBS volumes cannot cross zones."],
+    alwaysOn: true,
+  },
+};

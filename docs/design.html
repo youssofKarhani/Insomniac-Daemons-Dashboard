@@ -1,0 +1,336 @@
+<title>Sleepless Twin Design</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: reading column (~70ch) with card grids for references and directions; same palette as the brief, taken from the owner's isometric renders. Dark-first. */
+:root{
+  --bg:#1b2550; --surface:#222d5e; --raise:#2a3670; --line:#3a4688;
+  --fg:#e7e8fb; --muted:#a9aedb; --lav:#9b92ea; --aqua:#5fd3c0; --violet:#b07cff;
+  --warn:#f2b866; --bad:#ff8a8a;
+  --display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --body:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#f3f3fb; --surface:#ffffff; --raise:#ecebfa; --line:#d3d2ee;
+  --fg:#1b2147; --muted:#555b8a; --lav:#5b4fd0; --aqua:#11806f; --violet:#7a3fe0;
+  --warn:#9a5a00; --bad:#b42323; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#f3f3fb; --surface:#ffffff; --raise:#ecebfa; --line:#d3d2ee;
+  --fg:#1b2147; --muted:#555b8a; --lav:#5b4fd0; --aqua:#11806f; --violet:#7a3fe0;
+  --warn:#9a5a00; --bad:#b42323; color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:15px/1.65 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 80px}
+.wrap{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:24px;font-weight:600;display:flex;gap:12px;align-items:baseline}
+h2 .n{font-family:var(--mono);font-size:13px;color:var(--lav);font-weight:500}
+h3{font-size:17px;font-weight:600}
+p,li{max-width:70ch;margin:0}
+section{display:flex;flex-direction:column;gap:14px}
+ul,ol{padding-left:22px;margin:0;display:flex;flex-direction:column;gap:6px}
+a{color:var(--aqua);overflow-wrap:anywhere} a:focus-visible{outline:2px solid var(--aqua);outline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--raise);padding:1px 5px;border-radius:4px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--aqua)}
+.lede{font-size:17px;color:var(--muted)}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+header{display:flex;flex-direction:column;gap:16px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+.card{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card h3{font-size:16px}
+.card .k{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.card p{font-size:14px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.tag.src{color:var(--aqua);border-color:color-mix(in srgb,var(--aqua) 50%,var(--line))}
+.tag.closed{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 50%,var(--line))}
+.dir{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:20px;display:flex;flex-direction:column;gap:12px}
+.dir.pick{border-color:var(--aqua);box-shadow:0 0 0 1px var(--aqua) inset}
+.dir dl{display:grid;grid-template-columns:150px 1fr;gap:6px 16px;margin:0}
+.dir dt{font-family:var(--mono);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-top:2px}
+.dir dd{margin:0;min-width:0}
+@media (max-width:560px){.dir dl{grid-template-columns:1fr}.dir dt{padding-top:8px}}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.sw{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.sw i{width:22px;height:22px;border-radius:5px;border:1px solid var(--line);display:inline-block}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface);font-weight:500}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.obs{color:var(--aqua)} .inf{color:var(--lav)} .new{color:var(--warn)}
+.beats{list-style:none;padding:0;display:flex;flex-direction:column;gap:0;border-left:2px solid var(--line);margin-left:6px}
+.beats li{position:relative;padding:0 0 18px 22px;max-width:none}
+.beats li::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2px solid var(--lav)}
+.beats li.hot::before{border-color:var(--aqua);background:var(--aqua)}
+.beats .t{font-family:var(--mono);font-size:12px;color:var(--aqua);display:block}
+.beats b{font-family:var(--display);font-weight:600}
+.note{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.keys div{display:flex;gap:10px;align-items:baseline;font-size:14px}
+kbd{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 6px;background:var(--raise);white-space:nowrap}
+.small{font-size:13px;color:var(--muted)}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Phase A · design direction</span>
+  <h1>A miniature that sleeps, wakes and keeps the books</h1>
+  <p class="lede">Reference research, three directions and a recommendation for the twin described in the <a href="https://claude.ai/artifact/7FgBgCAsP7PHMxbiy7fpUS">revised brief</a>. No code yet. This page is for choosing a direction.</p>
+  <div class="meta"><span>Revised 2026-11-17</span><span>13 references, each opened and checked</span><span>Awaiting owner approval</span></div>
+</header>
+
+<section>
+  <h2><span class="n">01</span>Creative vision</h2>
+  <p>Most infrastructure visuals show a system that is always on. This platform's point is the opposite: it spends most of its life switched off, and every minute of GPU is a deliberate, paid decision. The twin should make that feel physical. At rest it is a dark, quiet model on a desk. When a job arrives, light travels through it, machines unfold one after another, and when the work is done they fold away again while a small ledger shows what the visit cost.</p>
+  <p>That gives a recruiter a story they can follow in a minute (it sleeps to save money, it wakes itself, it checks its own work) and gives an engineer a precise instrument (every light is a real event with a timestamp). It reads as product craft rather than a sci-fi poster, which is also what the owner's existing renders already look like.</p>
+</section>
+
+<section>
+  <h2><span class="n">02</span>Reference research</h2>
+  <p>Each link below was opened on 2026-11-17. "Source" is marked only where a public repository was found. Images are not copied here; follow the links.</p>
+
+  <h3>Infrastructure and network visualisation</h3>
+  <div class="cards">
+    <div class="card"><span class="k">Animated traffic graph</span><h3>Netflix Vizceral</h3><a href="https://github.com/Netflix/vizceral">github.com/Netflix/vizceral</a>
+      <p>Particles flowing along edges show request volume between regions and services. Three zoom levels: global, regional, single service; click to go deeper.</p>
+      <p><b>Borrow:</b> particle density encodes volume; drill-down levels map to our world → district → object zoom.</p>
+      <div class="tags"><span class="tag">WebGL · JavaScript</span><span class="tag src">Source · Apache-2.0</span><span class="tag">Not actively maintained</span></div></div>
+    <div class="card"><span class="k">Service-mesh topology</span><h3>Kiali graph</h3><a href="https://kiali.io/docs/features/topology/">kiali.io/docs/features/topology</a>
+      <p>Live traffic animation on a mesh graph. The docs describe distinct shapes for successful requests and errors, with density and speed tied to rate and response time.</p>
+      <p><b>Borrow:</b> encode failure in shape as well as colour, so retries and errors read without relying on red alone.</p>
+      <div class="tags"><span class="tag">Web UI</span><span class="tag">Source not checked</span></div></div>
+    <div class="card"><span class="k">Cluster at a glance</span><h3>Kubernetes Operational View</h3><a href="https://codeberg.org/hjacobs/kube-ops-view">codeberg.org/hjacobs/kube-ops-view</a>
+      <p>Nodes drawn as boxes filled with one small box per pod; border colour shows pod status. Read-only by design, with a mock mode that needs no cluster.</p>
+      <p><b>Borrow:</b> pods as modules seated inside their host; a mock mode equals our sample traces.</p>
+      <div class="tags"><span class="tag">Python + browser canvas</span><span class="tag src">Source · GPL-3.0 (moved from GitHub)</span></div></div>
+    <div class="card"><span class="k">Isometric AWS diagrams</span><h3>Cloudcraft</h3><a href="https://docs.datadoghq.com/cloudcraft/getting-started/live-vs-snapshot-diagrams/">Cloudcraft live vs snapshot docs</a>
+      <p>The best-known isometric AWS vocabulary. Live diagrams sync from an account; snapshots are frozen. It is still a static diagram: nothing moves.</p>
+      <p><b>Borrow:</b> recruiters may already recognise isometric AWS blocks; the live/snapshot split mirrors our Live/Replay. <b>Avoid:</b> its stillness, which is the gap this project fills.</p>
+      <div class="tags"><span class="tag closed">Commercial</span></div></div>
+  </div>
+
+  <h3>Real-time digital twins</h3>
+  <div class="cards">
+    <div class="card"><span class="k">Live data, physical motion</span><h3>Mini Tokyo 3D</h3><a href="https://github.com/nagix/mini-tokyo-3d">github.com/nagix/mini-tokyo-3d</a>
+      <p>Trains and planes move across a 3D Tokyo using open real-time transport data. Discrete position updates become smooth continuous motion.</p>
+      <p><b>Borrow:</b> interpolate between sparse real events so the scene stays alive between telemetry updates without inventing state.</p>
+      <div class="tags"><span class="tag">Mapbox GL · JavaScript</span><span class="tag src">Source · MIT</span></div></div>
+    <div class="card"><span class="k">Building twin with sensors</span><h3>Autodesk Tandem at AU</h3><a href="https://intandem.autodesk.com/resource/autodesk-tandem-tracked-autodesk-universitys-exhibit-hall-live">intandem.autodesk.com</a>
+      <p>A twin of an exhibition hall fed by near-real-time IoT sensors, shown as time-series charts and as heatmaps placed on the floor plan.</p>
+      <p><b>Borrow:</b> put metrics on the object they describe (cost on the GPU, depth on the queue) and keep full charts secondary.</p>
+      <div class="tags"><span class="tag closed">Commercial</span></div></div>
+    <div class="card"><span class="k">Data story on WebGL</span><h3>The GitHub globe</h3><a href="https://github.blog/engineering/engineering-principles/how-we-built-the-github-globe/">github.blog: How we built the GitHub globe</a>
+      <p>Three.js globe of real pull-request activity, fed from a JSON file. An SVG stand-in shows before WebGL is ready, then crossfades.</p>
+      <p><b>Borrow:</b> data as static JSON (our <code>live.json</code>); an SVG first frame that doubles as the no-WebGL fallback.</p>
+      <div class="tags"><span class="tag">Three.js</span><span class="tag">Write-up, no source</span></div></div>
+  </div>
+
+  <h3>Miniature worlds, portfolios and craft</h3>
+  <div class="cards">
+    <div class="card"><span class="k">Mini-city</span><h3>Windland (Codrops case study)</h3><a href="https://tympanus.net/codrops/2022/04/25/case-study-windland-an-immersive-three-js-experience/">tympanus.net/codrops · Windland</a>
+      <p>A low-poly mini-city with post-processing and micro-interactions, built in about two weeks. The write-up covers a lighter mode for phones.</p>
+      <p><b>Borrow:</b> a separate low-cost mode for mobile; micro-interactions on hover to reward exploration.</p>
+      <div class="tags"><span class="tag">Three.js</span><span class="tag">Boilerplate linked from article</span></div></div>
+    <div class="card"><span class="k">World as portfolio</span><h3>Bruno Simon, folio 2019</h3><a href="https://github.com/brunosimon/folio-2019">github.com/brunosimon/folio-2019</a>
+      <p>The reference playable portfolio: drive a small car through a world that holds the work.</p>
+      <p><b>Borrow:</b> the world is the CV. <b>Avoid:</b> game controls; our visitors need to understand a system, not steer a car.</p>
+      <div class="tags"><span class="tag">Three.js · Vite</span><span class="tag src">Source · MIT</span></div></div>
+    <div class="card"><span class="k">Day/night blend</span><h3>My Room in 3D</h3><a href="https://github.com/brunosimon/my-room-in-3d">github.com/brunosimon/my-room-in-3d</a>
+      <p>A small isometric room with baked lighting and a live control that blends it from day to night.</p>
+      <p><b>Borrow:</b> one global "awake" uniform that blends the whole scene between sleep and active palettes.</p>
+      <div class="tags"><span class="tag">Three.js · Blender bake</span><span class="tag src">Public repo, no licence shown</span></div></div>
+    <div class="card"><span class="k">Narrative scroll</span><h3>Igloo Inc</h3><a href="https://www.awwwards.com/igloo-inc-case-study.html">Awwwards case study</a>
+      <p>Awwwards Site of the Year 2024. Three short sections, each a staged 3D scene with interactive details, carried by scroll.</p>
+      <p><b>Borrow:</b> the guided tour as a short staged sequence, planned first as grey mock-ups, which is how the studio says it worked.</p>
+      <div class="tags"><span class="tag">Three.js · GSAP · Svelte (per case study)</span><span class="tag closed">Commercial</span></div></div>
+    <div class="card"><span class="k">Tiny planet</span><h3>Messenger by abeto</h3><a href="https://www.awwwards.com/sites/messenger">Awwwards SOTD, 10 Nov 2025</a>
+      <p>A walkable small planet with a two-colour palette and multiplayer. Proof that restraint reads as premium.</p>
+      <p><b>Borrow:</b> a deliberately small palette; a world small enough to understand at a glance.</p>
+      <div class="tags"><span class="tag">Three.js · WebSockets</span><span class="tag closed">Commercial</span></div></div>
+    <div class="card"><span class="k">Building blocks</span><h3>React Three Fiber examples</h3><a href="https://r3f.docs.pmnd.rs/getting-started/examples">r3f.docs.pmnd.rs/getting-started/examples</a>
+      <p>Official showcase, including a selection plus tilt-shift example and HTML annotation examples.</p>
+      <p><b>Borrow:</b> tilt-shift depth of field for the miniature look; outline-on-select; HTML labels anchored to 3D objects.</p>
+      <div class="tags"><span class="tag">R3F · drei</span><span class="tag">Sandboxes linked from docs</span></div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">03</span>Three directions</h2>
+
+  <div class="dir pick">
+    <span class="eyebrow">Direction A · recommended</span>
+    <h3>Night Shift Workshop</h3>
+    <dl>
+      <dt>Identity</dt><dd>A single isometric diorama on a navy desk, built in the language of the owner's renders: flat-shaded lavender machines, thin bright edges, aqua and violet indicator lights. Two raised platforms stand for the two Availability Zones, joined by a short bridge. Tilt-shift blur makes it read as a physical miniature.</dd>
+      <dt>Components</dt><dd>Machines on a workbench: arch (API Gateway), relay switch (Lambda), sorter trays (queues), bins (DLQs), open crate (S3), tower with roof modules (control plane and pods), empty cradle that receives a cassette (GPU node), drive that docks to it (model EBS). Full map in section 05.</dd>
+      <dt>Data</dt><dd>Each job is a lavender ticket that slides along engraved rails. It gets stamped by LAYA, waits in trays, crosses the bridge to the GPU platform, and comes back as a document dropped into the crate.</dd>
+      <dt>Activation</dt><dd>Mechanical and sequential: lights climb a tower, a cassette slides into a cradle, a drive docks with a click of light. A global "awake" blend raises the ambient light when the control plane runs.</dd>
+      <dt>Interaction</dt><dd>Orthographic camera in fixed iso angles with 90° turns, three zoom stops, click-to-inspect.</dd>
+      <dt>Strengths</dt><dd>Reuses the existing art direction; built from boxes, so cheap to make procedurally; the clearest mapping of one object per component; very readable on phones.</dd>
+      <dt>Weaknesses</dt><dd>Risk of looking like a toy if the motion is cute rather than precise. Mitigation: mechanical easing, no bouncing, honest timing.</dd>
+      <dt>Build cost</dt><dd>Low to medium. Day one is realistic.</dd>
+    </dl>
+  </div>
+
+  <div class="dir">
+    <span class="eyebrow">Direction B</span>
+    <h3>Tide Harbour</h3>
+    <dl>
+      <dt>Identity</dt><dd>A small night harbour seen from above. Water level and light carry the mood: dark and still when idle, lit quays when working.</dd>
+      <dt>Components</dt><dd>Harbour gate (API Gateway), pilot boat (Lambda), anchorage (workflow queue), customs house (LAYA), dry dock with crane (GPU ASG and node), lighthouse (EventBridge pre-warm), warehouse (S3), wreck buoy (DLQ).</dd>
+      <dt>Data</dt><dd>Jobs are boats that queue, get inspected, and either turn back (rejected) or enter the dry dock for work.</dd>
+      <dt>Activation</dt><dd>Lights come on along the quay, the crane lifts a hull into the dock, the lighthouse sweeps at 06:55.</dd>
+      <dt>Interaction</dt><dd>Free orbit with a low horizon, guided camera along the waterline.</dd>
+      <dt>Strengths</dt><dd>Very approachable for non-engineers; queues and waiting feel natural on water.</dd>
+      <dt>Weaknesses</dt><dd>The metaphor strains for KEDA, the Cluster Autoscaler and pods; engineers must translate everything. Water and boats need modelling and shaders, and it discards the existing renders.</dd>
+      <dt>Build cost</dt><dd>High. Not a one-day prototype.</dd>
+    </dl>
+  </div>
+
+  <div class="dir">
+    <span class="eyebrow">Direction C</span>
+    <h3>Living Schematic</h3>
+    <dl>
+      <dt>Identity</dt><dd>A 2.5D circuit board seen almost from above. Components are chips and modules on a dark board; copper traces carry signals; power rails visibly charge and drain.</dd>
+      <dt>Components</dt><dd>Each AWS resource is a labelled chip; pods are small chips in a socket on the control-plane module; the GPU is a large chip in an empty socket that is filled when the node joins.</dd>
+      <dt>Data</dt><dd>Pulses run along traces; queue depth is a stack of LEDs; failures short to an amber fuse (DLQ).</dd>
+      <dt>Activation</dt><dd>Power flows from the always-on rail into each zone; unpowered regions fade to the board's base colour.</dd>
+      <dt>Interaction</dt><dd>Pan and zoom like a map, hover to trace a signal path end to end.</dd>
+      <dt>Strengths</dt><dd>Most precise for engineers; trivial on phones; could run as SVG or canvas with no WebGL at all.</dd>
+      <dt>Weaknesses</dt><dd>Close to a diagram with animation, which the brief asks to avoid. Less memorable.</dd>
+      <dt>Build cost</dt><dd>Low.</dd>
+    </dl>
+  </div>
+
+  <div class="tbl"><table>
+    <thead><tr><th></th><th>A · Workshop</th><th>B · Harbour</th><th>C · Schematic</th></tr></thead>
+    <tbody>
+      <tr><td>Memorable</td><td>High</td><td>High</td><td>Medium</td></tr>
+      <tr><td>Accurate mapping</td><td>High</td><td>Medium</td><td>High</td></tr>
+      <tr><td>Uses existing renders</td><td>Yes</td><td>No</td><td>Partly</td></tr>
+      <tr><td>Phone performance</td><td>Good</td><td>Fair</td><td>Excellent</td></tr>
+      <tr><td>Day-one feasible</td><td>Yes</td><td>No</td><td>Yes</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">04</span>Recommendation: Night Shift Workshop</h2>
+  <p>It is the only direction that is memorable, accurate and buildable in a day, and it continues work the owner has already done. Two ideas are borrowed from the others: the power-rail idea from C becomes thin glowing lines engraved in the desk that show which zones are powered, and the 06:55 pre-warm from B keeps its own small ritual (the clock's hand sweeps and taps the relay).</p>
+  <div class="swatches" aria-label="Palette">
+    <span class="sw"><i style="background:#1b2550"></i>Night desk</span>
+    <span class="sw"><i style="background:#2a3670"></i>Asleep machine</span>
+    <span class="sw"><i style="background:#8a82e0"></i>Lavender face</span>
+    <span class="sw"><i style="background:#5fd3c0"></i>Aqua · active</span>
+    <span class="sw"><i style="background:#b07cff"></i>Violet · GPU</span>
+    <span class="sw"><i style="background:#f2b866"></i>Amber · retry</span>
+  </div>
+  <ul>
+    <li><b>Layout:</b> left to right in the order work flows. Front edge: Ingress (arch, relay, clock). Middle: Buffer (two sorter trays, two bins, crate). Back-left platform: zone 1a with the control-plane tower. Back-right platform: zone 1c with the GPU cradle and model drive. The bridge between the platforms is the cross-AZ link.</li>
+    <li><b>Rules of light:</b> aqua means a CPU-side component is working, violet means GPU work, amber means a retry or warning, a dashed or breathing outline means the state is inferred rather than observed. Nothing glows without an event behind it.</li>
+    <li><b>Motion rules:</b> mechanical ease-in-out, no overshoot; long real waits (boot, model load, cooldowns) are shown as rings that fill, and are compressed in replay with a visible marker.</li>
+    <li><b>The ledger:</b> a small panel on the desk corner showing "compute running now" and "this month: billed vs if always on". It expands into the cost drawer.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">05</span>Component map</h2>
+  <p><span class="pill obs">render</span> an owner render exists for idle and working. <span class="pill new">new</span> needs a new object, built procedurally in the same style.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Component</th><th>Object</th><th>Asleep</th><th>Working</th><th></th></tr></thead>
+    <tbody>
+      <tr><td>API Gateway</td><td>Arch with four route lights</td><td>Lights dim</td><td>The route light for the hit path flashes; ticket passes through</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>Wake Lambda</td><td>Upright relay switch</td><td>Contact open</td><td>Contact closes; pulses go to tray and tower</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>EventBridge pre-warm</td><td>Desk clock</td><td>Hands still</td><td>Hand sweeps and taps the relay at 06:55</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>EventBridge stop guard</td><td>Small latch on the GPU cradle</td><td>Locked when GPU launches are suspended</td><td>Snaps shut when the control plane stops</td><td><span class="pill new">new</span></td></tr>
+      <tr><td>Workflow queue</td><td>Sorter tray</td><td>Empty</td><td>Tickets stack in order; in-flight tickets lift slightly</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>GPU queue</td><td>Second, violet-trimmed tray at the bridge</td><td>Empty</td><td>Tickets wait for the GPU; KEDA reads it</td><td><span class="pill new">new</span></td></tr>
+      <tr><td>Two DLQs</td><td>Bins under each tray</td><td>Empty</td><td>A ticket drops in after its third failure; a count stays visible</td><td><span class="pill new">new</span></td></tr>
+      <tr><td>S3 bucket</td><td>Open crate</td><td>Holds past documents</td><td>New document drops in with an aqua check</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>Control-plane EC2</td><td>Tower</td><td>Dark, open passage</td><td>Status window lights; panels climb on boot, fall on shutdown</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>Orchestrator, worker, LiteLLM</td><td>Roof modules on the tower</td><td>Retracted</td><td>Rise when pods are ready; worker holds the active ticket</td><td><span class="pill new">new</span></td></tr>
+      <tr><td>LAYA Decision Service</td><td>Scanner gate with a stamp arm</td><td>Retracted</td><td>Scans a ticket; stamps pass, reject or the verify result</td><td><span class="pill new">new</span></td></tr>
+      <tr><td>Idle watchdog</td><td>Small dial on the tower</td><td>Hidden</td><td>Fills over 30 minutes of quiet, resets on any activity</td><td><span class="pill new">new</span></td></tr>
+      <tr><td>KEDA</td><td>Lever beside the GPU tray</td><td>Down</td><td>Flips when the tray has work; cooldown ring of 120 s</td><td><span class="pill new">new</span></td></tr>
+      <tr><td>Cluster Autoscaler</td><td>Arm reaching from the tower to the cradle</td><td>Folded</td><td>Extends to request a node; folds after 2 min unneeded</td><td><span class="pill new">new</span></td></tr>
+      <tr><td>GPU ASG and EC2</td><td>Cradle plus cassette</td><td>Empty cradle</td><td>Cassette slides in; violet light when ready; label "On-Demand" or "Spot"</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>Model EBS</td><td>Indigo drive beside the cradle</td><td>Parked, two labelled slots: general, coder</td><td>Docks to the cassette; the general slot lights</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>vLLM</td><td>Core inside the cassette</td><td>Absent</td><td>Fills as the model loads; violet stripe while generating</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>Mock inference</td><td>Not shown publicly</td><td colspan="2">Dev-only; appears only if telemetry ever reports it</td><td></td></tr>
+      <tr><td>SSM Session Manager</td><td>Operator terminal at the edge</td><td>Screen off</td><td>Lights when a session is open, without any detail</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>VPC and two subnets</td><td>The two platforms and the desk outline</td><td colspan="2">Static; the active platform's edge lights when its instance runs</td><td><span class="pill obs">render</span></td></tr>
+      <tr><td>IAM, security groups</td><td>Inspector only</td><td colspan="2">Explained in the inspector cards, not drawn</td><td></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">06</span>Storyboard: a cold job that needs the GPU</h2>
+  <p>Durations come from the platform's configuration. Boot and model-load times are placeholders until real traces are recorded.</p>
+  <ol class="beats">
+    <li><span class="t">Before</span><b>Asleep.</b> Desk dark. Only the always-on pieces show a faint edge: arch, relay, trays, crate, clock. Ledger reads "compute running now: $0.00/h".</li>
+    <li class="hot"><span class="t">0 s</span><b>A request arrives.</b> A ticket appears at the arch and the <code>/jobs</code> route light flashes.</li>
+    <li class="hot"><span class="t">+0.1 s</span><b>Relay closes.</b> The ticket drops into the workflow tray. A pulse runs along the desk rail to the tower: start the control plane.</li>
+    <li><span class="t">+~1 min</span><b>Tower wakes.</b> The scene's light rises. Panels climb; the status window turns aqua. Roof modules rise one by one as pods become ready (drawn as inferred until the exporter exists).</li>
+    <li class="hot"><span class="t">next</span><b>Worker takes the ticket; LAYA scans it.</b> The scanner arm stamps it. Here the story can branch: decision-only jobs finish on CPU, rejected ones go straight to the crate with a grey stamp, and the GPU platform never lights.</li>
+    <li><span class="t">next</span><b>Hand-off to the GPU tray.</b> The ticket crosses to the violet tray at the bridge. Within 15 s the KEDA lever flips and a dashed vLLM outline appears in the empty cradle (pod pending).</li>
+    <li><span class="t">+~10 s</span><b>Capacity requested.</b> The autoscaler arm extends from the tower to the cradle. ASG desired 0 → 1.</li>
+    <li class="hot"><span class="t">90–150 s total cold start</span><b>The cassette arrives.</b> It slides into the cradle, the model drive docks with a line of light, a cable links back across the bridge (node joined), and the core fills as <code>qwen-general</code> loads.</li>
+    <li class="hot"><span class="t">seconds</span><b>Generation.</b> The ticket travels worker → LiteLLM → bridge → core. The violet stripe runs while tokens stream back as small dots.</li>
+    <li><span class="t">next</span><b>Verification.</b> Back through the LAYA scanner. A failed check sends it round again with a small regeneration pip; a pass earns an aqua check.</li>
+    <li class="hot"><span class="t">next</span><b>Result stored.</b> A document drops into the crate. The ledger adds this job's estimated cost.</li>
+    <li><span class="t">+120 s</span><b>GPU winds down.</b> A cooldown ring closes around the core; the core empties; after 2 more minutes the autoscaler arm pulls the cassette out. GPU meter stops.</li>
+    <li><span class="t">+30 min</span><b>Back to sleep.</b> The watchdog dial fills, the tower's panels fall top-down, the room dims, and the guard latch on the cradle snaps shut. Caption: "GPU paid for 6 min today. Always-on would have cost …"</li>
+  </ol>
+  <h3>Other endings</h3>
+  <ul>
+    <li><b>Error and retry:</b> the ticket turns amber, returns to its tray and gains a receive-count pip; on the third failure it drops into the bin below.</li>
+    <li><b>Needs review:</b> after the last failed verification the document lands in the crate with a hollow amber mark.</li>
+    <li><b>Warm path:</b> a second job inside the cooldown goes straight to the core; the ring resets.</li>
+    <li><b>Spot interruption</b> (once Spot is on): the cassette's edge flashes amber with a 2-minute ring; the ticket goes back to the tray.</li>
+    <li><b>Pre-warm with no work:</b> the clock taps the relay, the tower wakes, nothing arrives, and the watchdog walks it back to sleep.</li>
+    <li><b>Launch failure:</b> the arm extends but no cassette comes; the cradle shows an amber "no capacity" tag and the ticket waits.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">07</span>Interaction design</h2>
+  <div class="cards">
+    <div class="card"><h3>Camera</h3><p>Orthographic iso view. Drag rotates within ±25°; buttons turn in 90° steps. Three zoom stops: whole desk, one platform, one object. Selecting an object eases the camera to frame it; Esc returns.</p></div>
+    <div class="card"><h3>Inspector</h3><p>Opens from the side on desktop, as a bottom sheet on phones. Two tabs: "What it does" in plain words, "How it works" with real config values, recent events and metrics. Never shows IDs or payloads.</p></div>
+    <div class="card"><h3>Live</h3><p>A status line at the top: "Asleep since 03:12 UTC" or "Working · 2 jobs · GPU ready". When asleep it offers "Watch the last run". Stale telemetry is shown as stale, not as asleep.</p></div>
+    <div class="card"><h3>Replay</h3><p>Run picker by date and outcome. Bottom timeline with event markers in the light colours; compressed gaps drawn as a break. Speed 1×, 4×, 15×, 60×. Captions above the timeline; the event log mirrors them as text.</p></div>
+    <div class="card"><h3>Guided tour</h3><p>Plays the best recent run with a scripted camera, 60–90 s, written for non-engineers. Skippable at any time and ends in Explore.</p></div>
+    <div class="card"><h3>History</h3><p>The ledger drawer: monthly billed cost, GPU active vs idle hours, jobs by outcome, cost per job. Clicking a day opens its runs in Replay.</p></div>
+  </div>
+  <h3>Keyboard</h3>
+  <div class="keys">
+    <div><kbd>Tab</kbd><span>Next object, in flow order</span></div>
+    <div><kbd>Enter</kbd><span>Inspect</span></div>
+    <div><kbd>Esc</kbd><span>Back out</span></div>
+    <div><kbd>Space</kbd><span>Play or pause</span></div>
+    <div><kbd>←</kbd> <kbd>→</kbd><span>Previous or next event</span></div>
+    <div><kbd>1</kbd>–<kbd>4</kbd><span>Live, Replay, Explore, Tour</span></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">08</span>What this means for the build</h2>
+  <ul>
+    <li>Rendering in 3D (R3F) with an orthographic camera, rather than 2D sprites: the renders are references, objects are procedural boxes, so camera turns and zoom stay crisp at any size.</li>
+    <li>Global <code>awake</code> value drives ambient light and palette blend; each object reads its own state from the shared reducer and eases toward it.</li>
+    <li>Tilt-shift and outline effects are optional and disabled on phones and in reduced-motion mode.</li>
+    <li>The 12 new objects in section 05 are part of the day-one kit. Each is a few boxes, a light and one moving part.</li>
+    <li>The SVG first frame (GitHub globe pattern) doubles as the no-WebGL fallback later.</li>
+  </ul>
+  <div class="note"><p><b>Decision needed:</b> approve Direction A (or pick B or C) to start Phase B, the day-one prototype.</p></div>
+</section>
+
+</div>

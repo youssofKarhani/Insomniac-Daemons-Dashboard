@@ -1,0 +1,301 @@
+<title>Sleepless Twin Brief</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column (~70ch) with wide tables allowed to scroll; palette lifted from the owner's isometric asset renders (navy ground, lavender faces, aqua and violet status lights). Dark-first. */
+:root{
+  --bg:#1b2550; --surface:#222d5e; --raise:#2a3670; --line:#3a4688;
+  --fg:#e7e8fb; --muted:#a9aedb; --lav:#9b92ea; --aqua:#5fd3c0; --violet:#b07cff;
+  --warn:#f2b866; --bad:#ff8a8a;
+  --display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --body:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#f3f3fb; --surface:#ffffff; --raise:#ecebfa; --line:#d3d2ee;
+  --fg:#1b2147; --muted:#555b8a; --lav:#5b4fd0; --aqua:#11806f; --violet:#7a3fe0;
+  --warn:#9a5a00; --bad:#b42323; color-scheme:light}}
+:root[data-theme="light"]{
+  --bg:#f3f3fb; --surface:#ffffff; --raise:#ecebfa; --line:#d3d2ee;
+  --fg:#1b2147; --muted:#555b8a; --lav:#5b4fd0; --aqua:#11806f; --violet:#7a3fe0;
+  --warn:#9a5a00; --bad:#b42323; color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:15px/1.65 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 80px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:24px;font-weight:600;display:flex;gap:12px;align-items:baseline}
+h2 .n{font-family:var(--mono);font-size:13px;color:var(--lav);font-weight:500}
+h3{font-size:17px;font-weight:600;margin-top:8px}
+p,li{max-width:70ch;margin:0}
+section{display:flex;flex-direction:column;gap:14px}
+ul,ol{padding-left:22px;margin:0;display:flex;flex-direction:column;gap:6px}
+a{color:var(--aqua)} a:focus-visible,button:focus-visible{outline:2px solid var(--aqua);outline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--raise);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--aqua)}
+.lede{font-size:17px;color:var(--muted)}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+header{display:flex;flex-direction:column;gap:16px}
+.note{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:8px}
+.note.warn{border-color:color-mix(in srgb,var(--warn) 55%,var(--line))}
+.note.bad{border-color:color-mix(in srgb,var(--bad) 55%,var(--line))}
+.note b.tag{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase}
+.note.warn b.tag{color:var(--warn)} .note.bad b.tag{color:var(--bad)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface);font-weight:500}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.obs{color:var(--aqua)} .inf{color:var(--lav)} .cus{color:var(--warn)} .no{color:var(--bad)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.grid2 > div{min-width:0}
+pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;overflow-x:auto;margin:0}
+.phase{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.phase > div{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--surface);display:flex;flex-direction:column;gap:8px;min-width:0}
+.phase h3{margin:0}
+.small{font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Project brief · revision 2</span>
+  <h1>An interactive digital twin of a scale-to-zero AI platform</h1>
+  <p class="lede">A living, art-directed miniature of the <em>My Sleepless Slaves</em> AWS deployment. It sleeps when the platform sleeps, wakes when real jobs arrive, replays past runs for visitors, and shows what the platform costs. It doubles as a monitoring view and a portfolio centrepiece.</p>
+  <div class="meta"><span>Owner: platform author</span><span>Region: eu-north-1</span><span>Revised 2026-11-17 against the platform repo</span></div>
+</header>
+
+<section>
+  <h2><span class="n">00</span>What changed in this revision</h2>
+  <p>The first draft was strong on ambition and art direction. It was checked line by line against the platform repo (Terraform, Kubernetes manifests, service code, architecture docs). These are the corrections and gaps that change the design.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Draft said</th><th>Repo shows</th><th>Why it matters for the twin</th></tr></thead>
+    <tbody>
+      <tr><td>One SQS queue plus a DLQ</td><td>Two queues, each with its own DLQ: the workflow queue <code>…-ai-jobs</code> and a GPU queue <code>…-gpu-inference-jobs</code>. KEDA watches only the GPU queue.</td><td>The "GPU needed" moment is a visible hand-off between two queues. CPU-only work never touches the second one.</td></tr>
+      <tr><td>GPU nodes run on Spot</td><td>The ASG launches <b>On-Demand</b> today because an organisation SCP denies Spot. Spot is configured and switchable.</td><td>The twin must show the real purchase option, and cost estimates must use the matching price.</td></tr>
+      <tr><td>Control plane is a <code>t3.small</code></td><td>Docs say <code>t3.small</code>; <code>terraform.tfvars</code> sets <code>t3.medium</code>.</td><td>Confirm against the live instance before labelling it or pricing it.</td></tr>
+      <tr><td>LAYA does "initial routing when applicable"</td><td>LAYA runs as its own Decision Service pod. It gates relevance before GPU work, answers decision-only jobs on CPU, and <b>verifies every Qwen output</b> afterwards, triggering bounded regeneration.</td><td>LAYA appears twice in a job's life. Its gate is the reason many jobs never wake the GPU, which is the platform's main idea.</td></tr>
+      <tr><td>Outcomes: done, failed, retried</td><td>Job states include <code>completed</code>, <code>rejected</code> (gated out), <code>needs_review</code> (failed verification), <code>failed</code>, <code>cancelled</code>. Steps: VALIDATING, DECIDING, WAITING_GPU, GENERATING, VERIFYING.</td><td>Each outcome needs its own visual ending.</td></tr>
+      <tr><td>"vLLM loads the appropriate model"</td><td>vLLM serves one model fixed at pod start (<code>qwen-general</code> today). The EBS cache holds a second (<code>qwen-coder</code>) that is not hot-swapped.</td><td>Don't animate per-job model switching. Show the resident model and the parked one.</td></tr>
+      <tr><td>"Multiple AZs"</td><td>Two subnets: control plane in <code>eu-north-1a</code>, GPU node and model EBS pinned to <code>eu-north-1c</code>. No NAT gateway.</td><td>The AZ split is real and explains a design constraint (EBS can't cross AZs). A good story beat.</td></tr>
+      <tr><td>EventBridge does scheduled wake-ups</td><td>Two rules: a 06:55 UTC pre-warm cron, and an EC2 state-change guard that forces the GPU ASG to 0 and suspends launches when the control plane stops.</td><td>Wake-ups can happen with zero jobs. Shutdown has a second, independent safety path.</td></tr>
+      <tr><td>Jobs enter through API Gateway</td><td>Three ingress paths: API Gateway → Lambda → SQS; direct <code>POST /jobs</code> to the orchestrator over an SSM tunnel; and synchronous OpenAI-style calls straight to LiteLLM that bypass the queues.</td><td>The twin must not assume every job starts at the portal.</td></tr>
+      <tr><td>Scale-down timings implied</td><td>KEDA cooldown 120 s, Cluster Autoscaler unneeded-time 2 min, idle watchdog 30 min. The architecture docs quote older values (600 s, 10 min).</td><td>Read timings from manifests, never from docs. Shutdown is three staggered events, not one.</td></tr>
+      <tr><td>Job state is queryable any time</td><td>The job store is SQLite on the control plane's disk. It is unreachable while the instance is stopped.</td><td>History and replay need their own always-on store, fed while the platform is awake.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note bad"><b class="tag">Security finding, outside this project</b><p>The wake API's <code>$default</code> route has no authorizer, and the Lambda answers <code>POST /wake</code> and <code>POST /jobs</code> with <code>Access-Control-Allow-Origin: *</code>. Anyone with the URL can start the control plane and enqueue work. The public twin must never reveal or call this URL. Fixing it belongs in the platform repo and is the owner's call.</p></div>
+  <div class="note warn"><b class="tag">Naming, owner's decision</b><p>The public site will be seen by recruiters. Decide whether it carries the platform's internal name or a public-facing one. The architecture docs already use "Personal AI Platform".</p></div>
+</section>
+
+<section>
+  <h2><span class="n">01</span>Goal, audience and success</h2>
+  <p>Build an interactive 2.5D/3D environment where each AWS resource and service is a recognisable object, and real platform events drive what moves, lights up and powers down. The twin explains the architecture through space, motion and story rather than through boxes and charts.</p>
+  <div class="grid2">
+    <div class="note"><h3>Who it is for</h3><ul><li><b>Recruiters and non-engineers:</b> understand in 60 seconds that this system sleeps to save money and wakes on demand.</li><li><b>Engineers:</b> inspect any component, see real timings, failure paths and costs.</li><li><b>The owner:</b> glance at live state and spend.</li></ul></div>
+    <div class="note"><h3>Done looks like</h3><ul><li>A visitor can replay a real run end to end with a timeline and captions.</li><li>Live mode reflects the real state within about 15 seconds of an AWS event.</li><li>Every animated state is labelled observed or inferred.</li><li>Works on a mid-range phone; has a non-WebGL fallback.</li><li>Hosting costs under $5/month at rest.</li></ul></div>
+  </div>
+  <h3>Non-goals</h3>
+  <ul><li>No controls: the public twin never starts, stops, scales or submits anything.</li><li>No job contents, prompts, CVs or model outputs are shown anywhere.</li><li>Not a replacement for CloudWatch; deep debugging stays there.</li><li>No hand-modelled Blender scene in the first version.</li></ul>
+</section>
+
+<section>
+  <h2><span class="n">02</span>The system, as deployed</h2>
+  <p>Canonical inventory for the twin. Every visual object maps to one row. "Lifecycle" is what the twin animates.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Layer</th><th>Component</th><th>Lifecycle</th><th>Lives in</th></tr></thead>
+    <tbody>
+      <tr><td>Ingress</td><td>API Gateway HTTP API (<code>/jobs /wake /status /health</code>)</td><td>Always on, $0 idle</td><td>Managed</td></tr>
+      <tr><td>Ingress</td><td>Wake Lambda: enqueue, offload &gt;128 KB to S3, start control plane, ASG guard</td><td>Per invocation</td><td>Managed</td></tr>
+      <tr><td>Ingress</td><td>EventBridge: 06:55 UTC pre-warm; EC2 stop guard</td><td>Always on</td><td>Managed</td></tr>
+      <tr><td>Buffer</td><td>SQS workflow queue + DLQ (maxReceive 3)</td><td>Always on</td><td>Managed</td></tr>
+      <tr><td>Buffer</td><td>SQS GPU queue + DLQ (visibility 360 s)</td><td>Always on</td><td>Managed</td></tr>
+      <tr><td>Storage</td><td>S3 artifacts bucket (<code>inputs/</code> expire 30 d, <code>outputs/</code>)</td><td>Always on</td><td>Managed</td></tr>
+      <tr><td>Control plane</td><td>EC2 control-plane host running K3s (size to confirm), 30 GB root</td><td>stopped ↔ running</td><td>eu-north-1a</td></tr>
+      <tr><td>Control plane</td><td>Pods: FastAPI orchestrator, AI worker (two poll loops), LiteLLM gateway, LAYA Decision Service</td><td>Up with host</td><td>K3s <code>personal-ai-infra</code></td></tr>
+      <tr><td>Control plane</td><td>Idle watchdog (systemd timer), SSM agent, SQLite job store + outbox</td><td>Up with host</td><td>Host</td></tr>
+      <tr><td>Scaling</td><td>KEDA ScaledObject on GPU queue (poll 15 s, cooldown 120 s, 0↔1, counts in-flight)</td><td>Up with host</td><td>K3s</td></tr>
+      <tr><td>Scaling</td><td>Cluster Autoscaler (ASG 0:1, scale-down after 2 min)</td><td>Up with host</td><td>K3s <code>kube-system</code></td></tr>
+      <tr><td>GPU</td><td>Auto Scaling Group, <code>g5.xlarge</code> (A10G 24 GB), On-Demand today</td><td>0 ↔ 1</td><td>eu-north-1c</td></tr>
+      <tr><td>GPU</td><td>GPU node joins K3s as an agent; NVIDIA device plugin; vLLM pod serving <code>qwen-general</code></td><td>Ephemeral</td><td>K3s <code>personal-ai-inference</code></td></tr>
+      <tr><td>GPU</td><td>50 GB gp3 model cache (<code>qwen-general</code> loaded, <code>qwen-coder</code> parked)</td><td>Persistent; attached at boot</td><td>eu-north-1c</td></tr>
+      <tr><td>Fallback</td><td>Mock inference pod (replicas 0 in production)</td><td>Dev only</td><td>K3s</td></tr>
+      <tr><td>Network</td><td>VPC, two public subnets, IGW, security groups, IAM roles</td><td>Static</td><td>Region</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2><span class="n">03</span>The real lifecycle of a job</h2>
+  <p>The draft listed 16 steps in one line. Real runs branch, overlap and fail. The twin's state machine follows this graph, and each edge is an event the twin can observe or infer.</p>
+<pre class="mermaid">
+flowchart TD
+  A[Request at API Gateway] --> B[Lambda]
+  P[06:55 pre-warm cron] --> B
+  B -->|SendMessage| Q1[(Workflow queue)]
+  B -->|StartInstances if stopped| CP[Control plane boots]
+  D[Direct POST via SSM tunnel] --> Q1
+  CP --> K[K3s pods ready]
+  K --> W[Worker takes job from workflow queue]
+  Q1 --> W
+  W --> L1{LAYA}
+  L1 -->|decision-only job| R1[Result to S3: completed on CPU]
+  L1 -->|below relevance threshold| R2[Result to S3: rejected, GPU never wakes]
+  L1 -->|passes| Q2[(GPU queue)]
+  Q2 --> KE[KEDA scales vLLM 0 to 1]
+  KE --> PE[vLLM pod pending]
+  PE --> CA[Cluster Autoscaler sets ASG desired 1]
+  CA --> G[GPU instance launches in 1c]
+  G --> EB[Model EBS attached and mounted]
+  EB --> J[Node joins K3s]
+  J --> V[vLLM loads qwen-general, becomes ready]
+  V --> GEN[Worker calls LiteLLM to vLLM]
+  GEN --> L2{LAYA verifies}
+  L2 -->|fails, retries left| GEN
+  L2 -->|passes| R3[Result to S3: completed]
+  L2 -->|fails, no retries left| R4[Result to S3: needs_review]
+  GEN -.->|error or Spot reclaim| RT[Message reappears, retried]
+  RT -.->|3rd failure| DLQ[(DLQ)]
+  R3 --> CD[KEDA cooldown 120 s, vLLM to 0]
+  CD --> SD[CA removes node after 2 min, ASG to 0]
+  SD --> IW[Watchdog: 30 min quiet]
+  IW --> ST[Control plane stops]
+  ST --> GU[EventBridge guard: ASG 0, launches suspended]
+</pre>
+  <h3>Cases the twin must handle</h3>
+  <ul>
+    <li><b>Parallel work:</b> several jobs in either queue at once; one GPU serving them in sequence.</li>
+    <li><b>Warm path:</b> a job arrives while the GPU is still up inside its cooldown, so no cold start.</li>
+    <li><b>Wake with no work:</b> the pre-warm cron, or a <code>/wake</code> call, boots the control plane and it idles back to sleep.</li>
+    <li><b>Synchronous calls</b> to LiteLLM that skip both queues. KEDA does not see them.</li>
+    <li><b>Launch failure:</b> the ASG can't get capacity (or Spot is denied) and the GPU job waits.</li>
+    <li><b>Spot interruption warning</b> once Spot is enabled.</li>
+    <li><b>Crash recovery:</b> worker restarts and replays pending outbox events.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">04</span>Art direction to start from</h2>
+  <p>The draft asked for original metaphors. The owner has already produced 23 isometric component renders in <code>Assets/3d components/</code> (an <i>idle</i> and a <i>working</i> set). They set a clear visual language, and the design should build on it rather than replace it.</p>
+  <ul>
+    <li><b>Look:</b> isometric, flat-shaded low-poly objects with thin bright edges; deep navy ground with a faint iso grid; lavender faces; aqua and violet status lights. Calm and precise, closer to a product illustration than to neon sci-fi.</li>
+    <li><b>Why it helps:</b> this style is made of extruded boxes and bevels, so it can be rebuilt procedurally in Three.js at low cost. No Blender pipeline is needed for version one.</li>
+    <li><b>Existing objects:</b> API Gateway arch, Lambda relay switch, SQS sorter tray, S3 bucket, control-plane tower, GPU cassette, GPU cradle, block-storage volume, pre-warm clock, SSM terminal, two-subnet VPC footprint, mounting cradle.</li>
+    <li><b>Missing objects:</b> second (GPU) queue, both DLQs, KEDA, Cluster Autoscaler, LiteLLM, LAYA, vLLM, orchestrator and worker pods, idle watchdog, EventBridge stop guard, IAM.</li>
+    <li><b>Housekeeping:</b> the idle set has 12 renders and the working set 11, the numbering does not line up between sets, and file names mix English and German. Normalise names to <code>component-state.png</code>.</li>
+  </ul>
+  <p>The metaphors in the first draft (portal, processing station, transport system, towers, energetic core, districts) remain valid input. The design phase should still propose three distinct directions, but each must say how it uses or departs from this existing language.</p>
+</section>
+
+<section>
+  <h2><span class="n">05</span>Modes</h2>
+  <div class="grid2">
+    <div class="note"><h3>Live</h3><p>Current state of every component: instances, pods, queue depths, GPU busy or idle, provisioning and shutdown in progress, latest event. When everything sleeps, the scene shows it clearly and offers the latest replay.</p></div>
+    <div class="note"><h3>Replay</h3><p>Pick a past run and watch its full lifecycle. Timeline with event markers, play/pause, scrub, speed 1× to 60×, captions with timestamps. Long waits (boot, model load) compress automatically and are marked as compressed.</p></div>
+    <div class="note"><h3>Explore</h3><p>Orbit, zoom and pan with limits. Click or keyboard-select any object for its role, how it scales, recent activity and metrics. Plain-language and engineer views of the same card.</p></div>
+    <div class="note"><h3>Guided tour</h3><p>Added in this revision. A 60–90 second scripted camera path over a real replay, with captions written for non-engineers. This is what most recruiters will see.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">06</span>Telemetry: what exists and what must be built</h2>
+  <p>The draft rightly warned that AWS won't emit every lifecycle event. This is the actual coverage. Labels: <span class="pill obs">observed</span> native AWS event, <span class="pill cus">custom</span> needs new code or config, <span class="pill inf">inferred</span> derived from other signals.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Moment</th><th>Signal</th><th>Kind</th></tr></thead>
+    <tbody>
+      <tr><td>Control plane pending / running / stopping / stopped</td><td>EventBridge "EC2 Instance State-change Notification"</td><td><span class="pill obs">observed</span></td></tr>
+      <tr><td>GPU instance launch / terminate / launch failed</td><td>EventBridge Auto Scaling lifecycle events</td><td><span class="pill obs">observed</span></td></tr>
+      <tr><td>Spot interruption warning</td><td>EventBridge "EC2 Spot Instance Interruption Warning"</td><td><span class="pill obs">observed</span></td></tr>
+      <tr><td>Who changed ASG desired capacity (CA vs guard vs watchdog)</td><td>CloudTrail <code>SetDesiredCapacity</code> via EventBridge; needs a trail</td><td><span class="pill cus">custom</span></td></tr>
+      <tr><td>Request hit API Gateway / Lambda ran</td><td>Lambda log lines via a subscription filter. The Lambda logs the full event body, so the filter must drop payloads.</td><td><span class="pill cus">custom</span></td></tr>
+      <tr><td>Queue depth, in-flight, DLQ count</td><td>CloudWatch SQS metrics, 1-minute and approximate; or polling <code>GetQueueAttributes</code></td><td><span class="pill obs">observed</span></td></tr>
+      <tr><td>Pods ready, vLLM pending, KEDA scale, node joined</td><td>Kubernetes events from inside the cluster; only while the control plane runs</td><td><span class="pill cus">custom</span></td></tr>
+      <tr><td>Job steps (LAYA gate, GPU dispatch, generate, verify, outcome)</td><td>Rows in the SQLite job store (<code>step_history</code>, timestamps)</td><td><span class="pill cus">custom</span></td></tr>
+      <tr><td>Model loaded into VRAM</td><td>vLLM readiness probe flip, or first successful completion</td><td><span class="pill inf">inferred</span></td></tr>
+      <tr><td>S3 result written</td><td>S3 event notification on <code>outputs/</code> (key only, never content)</td><td><span class="pill obs">observed</span></td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li>The two <span class="pill cus">custom</span> in-cluster sources need something running on the control plane. That is a change to the live platform, deployed from this project's own code, and only with the owner's approval.</li>
+    <li>Use source timestamps. Lambda, EC2 and K3s clocks can drift, so replay orders by source time and tolerates a second or two of skew.</li>
+    <li>When the twin infers a state, it draws it differently (for example a dashed glow) so the visualisation never claims more than it knows.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">07</span>Cost and activity</h2>
+  <ul>
+    <li><b>Billed cost</b> from Cost Explorer: monthly and daily by service. It lags about a day, and each API call costs $0.01, so fetch once a day on a schedule and cache. Confirm the account can call Cost Explorer under its organisation.</li>
+    <li><b>Live estimate</b>: running seconds of each instance × its price (from the Pricing API, matched to On-Demand or Spot), plus persistent EBS. Always labelled "estimate".</li>
+    <li><b>Activity</b>: jobs per day, outcomes split (completed, rejected by LAYA, needs review, failed), GPU active vs idle time, cold-start duration, average inference duration, estimated cost per job.</li>
+    <li><b>The headline number</b> for visitors: GPU hours actually paid vs a 24/7 instance for the same period.</li>
+    <li>Present costs inside the scene, for example as a ledger beside the GPU district or a meter on each object, and keep full charts in a drawer.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">08</span>Constraints</h2>
+  <div class="grid2">
+    <div class="note"><h3>Public safety</h3><ul><li>Read-only. No endpoint that changes anything.</li><li>Redact account ID, resource IDs, ARNs, IPs and the wake API URL.</li><li>No job payloads or outputs; only IDs hashed for display, types and timings.</li><li>The twin's read API has its own minimal IAM role with no access to platform data paths.</li></ul></div>
+    <div class="note"><h3>Always available</h3><ul><li>The site and its data must not depend on the control plane or GPU being up.</li><li>Static front end plus a cheap always-on read path.</li><li>Target under $5/month at rest.</li></ul></div>
+    <div class="note"><h3>Performance</h3><ul><li>60 fps desktop, 30+ fps on a mid-range phone.</li><li>Under 2 MB JS and assets before first interaction; lazy-load the rest.</li><li>Pause rendering when the tab is hidden.</li></ul></div>
+    <div class="note"><h3>Accessibility</h3><ul><li>Honour reduced motion with a calmer state-only mode.</li><li>Every object reachable by keyboard; inspector readable by screen readers.</li><li>A text event log mirrors what the scene shows.</li><li>2D fallback when WebGL is unavailable.</li></ul></div>
+  </div>
+  <div class="note warn"><b class="tag">Repository rule</b><p>The platform repo (<code>My sleepless slaves</code>) is read-only reference. The twin lives entirely in <code>AWS-dashboard</code>, including any AWS resources it needs, which get their own infrastructure code and state.</p></div>
+</section>
+
+<section>
+  <h2><span class="n">09</span>Research to do before designing</h2>
+  <p>Kept from the draft, with tighter rules.</p>
+  <ul>
+    <li>At least 8 real references across: 3D infrastructure and network visualisation; data-centre and factory digital twins; Three.js and R3F showcase work; isometric miniature worlds; animated data-flow and topology; creative 3D developer portfolios; spatial observability tools; open-source infrastructure visualisers.</li>
+    <li>For each: name, working URL (opened and checked), what is impressive, which pattern transfers, technology where verifiable, and source availability only if the repository was actually found.</li>
+    <li>Describe visuals in words and link to them. Don't copy screenshots into the published brief.</li>
+    <li>Prefer references that match the existing calm isometric style over neon sci-fi.</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="n">10</span>Phases</h2>
+  <div class="phase">
+    <div><span class="eyebrow">Day 1</span><h3>Visual prototype</h3><p class="small">Procedural isometric scene of all components, idle and working states, a typed event model and state machine, replay of a sample trace with timeline and captions, inspector cards. Runs as a static site with no AWS connection. Sample data is labelled as sample.</p></div>
+    <div><span class="eyebrow">Week 1–2</span><h3>Real telemetry</h3><p class="small">The twin's own AWS stack: EventBridge rules, an ingest Lambda, an event table, a read-only API, daily cost fetch. Live mode on AWS-native signals; real runs recorded for replay.</p></div>
+    <div><span class="eyebrow">Later</span><h3>Production polish</h3><p class="small">In-cluster exporter for pod and job-step events (with approval), guided tour, refined assets, sound design, 2D fallback, performance and accessibility passes.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">11</span>Expected design output</h2>
+  <ol>
+    <li>Creative vision and why it works as a portfolio piece.</li>
+    <li>Reference research (section 09).</li>
+    <li>Three distinct directions, each with visual identity, component representation, data movement, activation animation, interaction, strengths, weaknesses and build cost.</li>
+    <li>Recommended direction.</li>
+    <li>Component map covering every row in section 02.</li>
+    <li>Storyboard covering the graph in section 03, including the failure and no-GPU branches.</li>
+    <li>Interaction design for all four modes.</li>
+    <li>Technical architecture: rendering, telemetry, storage, API, costs, hosting.</li>
+    <li>Day-one build plan.</li>
+    <li>Roadmap.</li>
+  </ol>
+  <p class="small">No implementation code until the design is agreed.</p>
+</section>
+
+<section>
+  <h2><span class="n">12</span>Open decisions for the owner</h2>
+  <ul>
+    <li>Public name for the site.</li>
+    <li>Control-plane instance size actually running (<code>t3.small</code> or <code>t3.medium</code>).</li>
+    <li>Whether to allow a small exporter on the control plane for pod and job-step events.</li>
+    <li>Whether to enable a CloudTrail trail for ASG attribution.</li>
+    <li>Hosting choice and domain.</li>
+    <li>Whether to fix the unauthenticated wake API in the platform (separate work).</li>
+  </ul>
+</section>
+
+</div>

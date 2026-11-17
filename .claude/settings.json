@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(//c/Users/USER/Desktop/My_Projects/My sleepless slaves/**)",
+      "Write(//c/Users/USER/Desktop/My_Projects/My sleepless slaves/**)",
+      "NotebookEdit(//c/Users/USER/Desktop/My_Projects/My sleepless slaves/**)",
+      "Read(//c/Users/USER/Desktop/My_Projects/My sleepless slaves/.env)",
+      "Read(//c/Users/USER/Desktop/My_Projects/My sleepless slaves/terraform/dev/terraform.tfstate*)",
+      "Read(//c/Users/USER/Desktop/My_Projects/My sleepless slaves/terraform/dev/terraform.tfvars)"
+    ]
+  }
+}
