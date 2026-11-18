@@ -107,6 +107,8 @@ The coder model's slot on the drive is shown as reserved, not loaded, until its 
 
 ## Not yet covered
 
+Planned in [phase-d-spec.md](phase-d-spec.md).
+
 - Job identities and overlapping jobs in Live (needs the exporter; Live shows unnamed tickets from counts).
 - KEDA, LAYA, vLLM, model drive, pods: exporter, Phase D, with owner approval.
 - Gateway and wake Lambda: log subscription that keeps route and status only, Phase D, with owner approval.
