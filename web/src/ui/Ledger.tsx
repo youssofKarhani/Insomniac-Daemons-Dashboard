@@ -5,6 +5,7 @@ import { CONFIG } from "../model/timings";
 import { useTwin } from "../store";
 import { duration, usd } from "./format";
 import { useRates } from "./rates";
+import { TOUR } from "../content/tour";
 
 const H = 3_600_000;
 
@@ -16,6 +17,7 @@ const H = 3_600_000;
 export function Ledger() {
   const rates = useRates();
   const mode = useTwin((s) => s.mode);
+  const focused = useTwin((s) => s.tour !== null && TOUR[s.tour].panel === "ledger");
   const v = useTwin(
     useShallow((s) => {
       const w = s.world;
@@ -51,7 +53,7 @@ export function Ledger() {
   const prewarmCost = (prewarm.cpSeconds * 1000 / H) * rates.controlPlane;
 
   return (
-    <section className="panel ledger" aria-label="Cost">
+    <section className={`panel ledger${focused ? " tour-focus" : ""}`} aria-label="Cost">
       <div className="ledger-row big">
         <span>Compute now</span>
         <b>${rates.nowPerHour.toFixed(2)}/h</b>
@@ -60,6 +62,12 @@ export function Ledger() {
         <div className="ledger-row" title={floor.parts.map((p) => `${p.name} ${usd(p.monthly)}/mo`).join(", ")}>
           <span>Asleep floor (storage)</span>
           <b>{usd(floor.monthly)}/mo</b>
+        </div>
+      )}
+      {focused && !(floor && floor.monthly > 0) && (
+        <div className="ledger-row">
+          <span>Asleep floor (storage)</span>
+          <b title="Measured from billing data when the site is connected to AWS">not loaded</b>
         </div>
       )}
       {billed && (

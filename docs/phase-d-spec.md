@@ -299,7 +299,7 @@ Each step is asked for separately. Later steps do not depend on earlier ones exc
 | 2 | Ingest Lambda, SSM parameters, schema changes (sections 6–7). **Done 2026-11-18**; see section 14. | No: twin-only resources, inert until a source sends | `enable_ingest` |
 | 3 | Wake log subscription (section 4). **Approved and done 2026-11-18**; see section 14. | **Yes**: attaches to a platform log group | `enable_wake_log_subscription` |
 | 4 | Exporter in the cluster (section 3), after testing on the dev cluster. **Approved 2026-11-18; built and tested, not deployed**: the owner applies it (`exporter/README.md`); see section 14. | **Yes**: runs on the control plane | Scale to 0 or delete the namespace |
-| 5 | Guided tour, 2D fallback | No | — |
+| 5 | Guided tour, 2D fallback. **Guided tour done 2026-11-18**; see section 14. 2D fallback not started. | No | — |
 
 ## 11. Acceptance tests
 
@@ -345,7 +345,7 @@ the twin works with or without them.
    are kept forever. Setting a retention (for example 14 days) limits that exposure even before the
    logging itself is fixed.
 
-## 14. As built (step 2)
+## 14. As built (steps 2–5)
 
 Differences from sections 6–7 found while building, and decisions taken:
 
@@ -412,6 +412,31 @@ Step 4 (exporter, `exporter/`):
   files with secret text planted in every private column.
 - **Not deployed.** The cluster only runs while the platform is awake, and section 11 asks for a dev
   cluster test first. `exporter/README.md` has the checks and the three deploy commands.
+
+### Step 5: guided tour
+
+- **Content**: `web/src/content/tour.ts`, 13 stops in the order of section 9. Each stop is
+  `{objectId, panel?, title, caption, scenario, anchor}`. Instead of a fixed `atSeconds`, each stop is
+  anchored to the first event of a kind in its sample scenario (for example `gpu.instance` running), so
+  the stops stay right when sample durations change. The LAYA gate stop uses the "Rejected by LAYA"
+  sample; every other stop uses "Cold start, GPU job". The last stop frames the whole desk and
+  highlights the ledger instead of an object.
+- **Playback** (`store.ts`): a stop loads its scenario if needed, frames its object (the inspector
+  opens), and plays a 2.5 s lead-in at 1× that pauses 0.4 s after the anchor event. Moving forward
+  inside the same run by up to 12 s of play time plays through instead of jumping. Under reduced
+  motion it cuts straight to the stop, paused, and the camera cuts instead of gliding.
+- **UI** (`ui/Tour.tsx`): the tour panel takes the replay bar's place and says SAMPLE. It has Back,
+  Next (named after the next stop), Finish and ×. Left and right arrows move between stops, and Escape
+  ends the tour. Choosing Live or another run also ends it. The playing event's caption is shown under
+  the stop text. On phones the inspector is hidden during the tour (the stop text stands in for it),
+  the ledger is shown for the last stop, and the header buttons use short labels (Tour, Labels, Log).
+- **Offline**: needs only sample data. Without billing data the ledger's asleep-floor row reads
+  "not loaded" during the last stop.
+- **Tests** (6, `web/src/content/tour.test.ts`): every stop resolves to a real scenario, object and
+  event; stops in one run move forward in time; the copy passes the same identifier patterns as the
+  redaction scanner; each stop lands with its event applied and its object framed (the reject stop
+  with the GPU still off); with motion, the lead-in pauses exactly at the stop; leaving for Live or
+  another run ends the tour. Checked in the browser at desktop and 375 px width.
 
 ## 15. Open questions for the owner
 

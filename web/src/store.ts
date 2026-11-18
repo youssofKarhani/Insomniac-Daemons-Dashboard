@@ -12,9 +12,10 @@ import {
   type RunSummary,
 } from "./data/remote";
 import type { TwinEvent } from "./model/events";
-import { ReplayCursor, buildTimeline, playToSrc, type Timeline } from "./model/replay";
+import { ReplayCursor, buildTimeline, playToSrc, srcToPlay, type Timeline } from "./model/replay";
 import { initialState, type WorldState } from "./model/state";
 import type { ObjectId } from "./content/components";
+import { TOUR, stopTime } from "./content/tour";
 
 export type Mode = "live" | "replay";
 
@@ -46,6 +47,10 @@ interface TwinStore {
   recorded: RunSummary[];
   costs: CostsDoc | null;
   loading: boolean;
+  /** Index of the current guided-tour stop, or null when no tour is running. */
+  tour: number | null;
+  /** Replay pauses on reaching this play time (used by the tour). */
+  playUntil: number | null;
 
   setMode: (m: Mode) => void;
   loadSource: (key: string) => Promise<void>;
@@ -59,7 +64,17 @@ interface TwinStore {
   refreshLive: () => Promise<void>;
   refreshRuns: () => Promise<void>;
   refreshCosts: () => Promise<void>;
+  startTour: () => void;
+  tourGo: (index: number) => void;
+  endTour: () => void;
 }
+
+/** The tour lands this far after its anchor event, so the event's effect is on screen. */
+export const TOUR_AFTER_MS = 400;
+/** Lead-in played before a stop's event when the tour jumps there. */
+export const TOUR_LEAD_MS = 2_500;
+/** Moving forward by up to this much play time, the tour plays through instead of jumping. */
+export const TOUR_PLAY_THROUGH_MS = 12_000;
 
 export const sourceKey = (s: Source) => `${s.kind}:${s.id}`;
 
@@ -113,8 +128,11 @@ export const useTwin = create<TwinStore>((set, get) => ({
   recorded: [],
   costs: null,
   loading: false,
+  tour: null,
+  playUntil: null,
 
   setMode: (mode) => {
+    set({ tour: null, playUntil: null });
     if (mode === "live") {
       set({ mode, playing: false });
       if (DATA_URL) set(stateAtNow(liveFeed.cursor));
@@ -130,6 +148,7 @@ export const useTwin = create<TwinStore>((set, get) => ({
   },
 
   loadSource: async (key) => {
+    set({ tour: null, playUntil: null });
     const [kind, id] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
     let events: TwinEvent[];
     let source: Source;
@@ -189,6 +208,12 @@ export const useTwin = create<TwinStore>((set, get) => ({
     }
     if (!playing) return;
     const next = play + dtMs * speed;
+    const until = get().playUntil;
+    if (until !== null && next >= until) {
+      get().seek(until);
+      set({ playing: false, playUntil: null });
+      return;
+    }
     if (next >= timeline.playDuration) {
       get().seek(timeline.playDuration);
       set({ playing: false });
@@ -234,6 +259,37 @@ export const useTwin = create<TwinStore>((set, get) => ({
       console.warn("Could not load costs", err);
     }
   },
+
+  startTour: () => get().tourGo(0),
+  tourGo: (index) => {
+    const stop = TOUR[Math.max(0, Math.min(TOUR.length - 1, index))];
+    const i = TOUR.indexOf(stop);
+    let { source, timeline, cursor } = get();
+    const fresh = source.kind !== "sample" || source.id !== stop.scenario;
+    if (fresh) {
+      source = { kind: "sample", id: stop.scenario };
+      ({ timeline, cursor } = prepare(buildScenario(stop.scenario)));
+    }
+    const ts = stopTime(stop, timeline.events);
+    const target = ts === null ? timeline.playDuration : Math.min(timeline.playDuration, srcToPlay(timeline, ts) + TOUR_AFTER_MS);
+    const from = get().play;
+    const playThrough = !fresh && target > from && target - from <= TOUR_PLAY_THROUGH_MS;
+    const start = get().reducedMotion ? target : playThrough ? from : Math.max(0, target - TOUR_LEAD_MS);
+    set({
+      mode: "replay",
+      tour: i,
+      source,
+      timeline,
+      cursor,
+      selected: stop.objectId,
+      speed: 1,
+      playing: start < target,
+      playUntil: start < target ? target : null,
+      play: start,
+      ...stateAtPlay(timeline, cursor, start),
+    });
+  },
+  endTour: () => set({ tour: null, playUntil: null, playing: false, selected: null }),
 }));
 
 reducedMotionQuery?.addEventListener?.("change", (e) => useTwin.setState({ reducedMotion: e.matches }));

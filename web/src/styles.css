@@ -145,6 +145,26 @@ details ul { margin: 8px 0; padding-left: 18px; display: flex; flex-direction: c
 .track:focus-within { outline: 2px solid var(--aqua); outline-offset: 2px; }
 .legend { margin: 0; }
 
+/* Guided tour (takes the replay bar's place) */
+.tour {
+  position: absolute; bottom: 16px; left: 302px; right: max(16px, env(safe-area-inset-right, 0px));
+  max-width: 640px; margin-left: auto; margin-right: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 8px;
+}
+.tour-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tour h2 { font-family: var(--display); font-size: 20px; margin: 0 0 4px; }
+.tour p { margin: 0; }
+.tour-event { min-height: 1.4em; }
+.tour-progress { display: flex; gap: 4px; }
+.tour-progress span { flex: 1; height: 3px; border-radius: 2px; background: var(--line); }
+.tour-progress span.done { background: var(--lav-edge); }
+.tour-progress span.on { background: var(--aqua); }
+.tour-nav { display: flex; justify-content: space-between; gap: 8px; }
+button.primary-btn { background: var(--lav); border: 1px solid var(--lav); color: #141a3d; font-weight: 600; border-radius: 8px; padding: 6px 12px; cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button.primary-btn:hover { background: var(--lav-edge); }
+button:disabled { opacity: 0.45; cursor: default; }
+.tour .sample { margin-right: 6px; }
+.ledger.tour-focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(95, 211, 192, 0.35); }
+
 /* Event log */
 .log { position: absolute; left: var(--gutter); top: 116px; width: 340px; max-height: calc(100% - 330px); overflow: auto; padding: 12px 14px; }
 .log ol { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -163,12 +183,19 @@ details ul { margin: 8px 0; padding-left: 18px; display: flex; flex-direction: c
   .status { top: 110px; }
   .ledger { display: none; }
   .mobile-only { display: inline-block; }
+  .desktop-only { display: none; }
   .replay { left: var(--gutter); right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px)); padding: 10px 12px; }
   .caption { font-size: 15px; }
   .clock { margin-left: 0; width: 100%; }
   .inspector { top: auto; bottom: max(12px, env(safe-area-inset-bottom, 0px)); left: var(--gutter); right: max(16px, env(safe-area-inset-right, 0px)); width: auto; max-height: 55%; z-index: 4; }
   .log { left: var(--gutter); right: max(16px, env(safe-area-inset-right, 0px)); width: auto; top: 190px; max-height: 40%; z-index: 3; }
   .legend { display: none; }
+  .tour { left: var(--gutter); right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px)); padding: 12px 14px; }
+  .tour h2 { font-size: 17px; }
+  .tour p { font-size: 14px; }
+  /* On a phone the tour caption stands in for the inspector, which would cover it. */
+  .touring .inspector { display: none; }
+  .touring-ledger .ledger { display: flex; top: 220px; bottom: auto; right: max(16px, env(safe-area-inset-right, 0px)); width: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

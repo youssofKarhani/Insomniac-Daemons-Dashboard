@@ -8,6 +8,8 @@ import { EventLog } from "./EventLog";
 import { ObjectNav } from "./ObjectNav";
 import { ReplayBar } from "./ReplayBar";
 import { StatusLine } from "./StatusLine";
+import { Tour } from "./Tour";
+import { TOUR } from "../content/tour";
 
 function hasWebGL(): boolean {
   try {
@@ -67,6 +69,15 @@ function useKeyboard() {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
       const s = useTwin.getState();
+      if (s.tour !== null) {
+        // During the tour the arrows move between stops; Escape leaves it.
+        if (e.key === "ArrowRight" && s.tour < TOUR.length - 1) s.tourGo(s.tour + 1);
+        else if (e.key === "ArrowLeft" && s.tour > 0) s.tourGo(s.tour - 1);
+        else if (e.key === "Escape") s.endTour();
+        else if (e.key === "1") s.setMode("live");
+        else if (e.key === "2") s.setMode("replay");
+        return;
+      }
       if (e.key === " " && s.mode === "replay") {
         e.preventDefault();
         s.setPlaying(!s.playing);
@@ -91,9 +102,12 @@ export function App() {
   const labels = useTwin((s) => s.labels);
   const setLabels = useTwin((s) => s.setLabels);
   const [logOpen, setLogOpen] = useState(false);
+  const touring = useTwin((s) => s.tour !== null);
+  const startTour = useTwin((s) => s.startTour);
+  const tourPanel = useTwin((s) => (s.tour !== null ? TOUR[s.tour].panel : undefined));
 
   return (
-    <div className="app">
+    <div className={`app${touring ? " touring" : ""}${tourPanel ? ` touring-${tourPanel}` : ""}`}>
       <div className="stage">
         {webgl ? (
           <World />
@@ -118,11 +132,17 @@ export function App() {
               Replay
             </button>
           </div>
+          <button className="ghost" aria-pressed={touring} onClick={startTour} disabled={touring}>
+            <span className="desktop-only">Guided tour</span>
+            <span className="mobile-only">Tour</span>
+          </button>
           <button className="ghost" aria-pressed={labels} onClick={() => setLabels(!labels)}>
-            {labels ? "Hide labels" : "Show labels"}
+            <span className="desktop-only">{labels ? "Hide labels" : "Show labels"}</span>
+            <span className="mobile-only">Labels</span>
           </button>
           <button className="ghost" aria-pressed={logOpen} onClick={() => setLogOpen(!logOpen)}>
-            Event log
+            <span className="desktop-only">Event log</span>
+            <span className="mobile-only">Log</span>
           </button>
         </div>
       </header>
@@ -131,7 +151,7 @@ export function App() {
       <ObjectNav />
       <Inspector />
       <Ledger />
-      {mode === "replay" && <ReplayBar />}
+      {touring ? <Tour /> : mode === "replay" && <ReplayBar />}
       {(logOpen || !webgl) && <EventLog onClose={webgl ? () => setLogOpen(false) : undefined} />}
     </div>
   );
