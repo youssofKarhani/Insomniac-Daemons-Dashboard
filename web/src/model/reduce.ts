@@ -1,5 +1,5 @@
 import { bool, num, str, type TwinEvent } from "./events";
-import type { CpState, GpuState, JobLocation, JobView, Market, Outcome, VllmState, WorldState } from "./state";
+import type { CpState, GpuState, JobLocation, JobView, Market, Outcome, QueueName, VllmState, WorldState } from "./state";
 
 const GPU_BILLED: GpuState[] = ["launching", "running", "terminating"];
 
@@ -204,6 +204,12 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
     case "ssm.session":
       s.ssmOpen = bool(e, "open", true);
       break;
+    case "queue.depth": {
+      const q = str(e, "queue") as QueueName;
+      if (!(q in s.queueDepth)) break;
+      s.queueDepth = { ...s.queueDepth, [q]: { visible: Math.max(0, num(e, "visible")), inFlight: Math.max(0, num(e, "inFlight")) } };
+      break;
+    }
   }
   return s;
 }

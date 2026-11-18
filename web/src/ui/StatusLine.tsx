@@ -1,46 +1,85 @@
 import { useShallow } from "zustand/react/shallow";
 import { SCENARIOS } from "../data/scenarios";
-import { SAMPLE_RATES_USD_PER_HOUR as RATE } from "../model/timings";
-import { useTwin } from "../store";
-import { duration } from "./format";
+import { useTwin, sourceKey } from "../store";
+import { useRates } from "./rates";
+import { dateUtc, duration } from "./format";
+
+function ago(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return s < 60 ? `${s} s ago` : `${duration(s * 1000)} ago`;
+}
 
 export function StatusLine() {
   const mode = useTwin((s) => s.mode);
-  const scenarioId = useTwin((s) => s.scenarioId);
-  const loadScenario = useTwin((s) => s.loadScenario);
-  const status = useTwin(useShallow((s) => {
-    const w = s.world;
-    const active = Object.values(w.jobs).filter((j) => j.step !== "done").length;
-    if (w.cp.state === "stopped") return { tone: "sleep", text: `Asleep${w.cp.since > s.timeline.srcStart ? ` for ${duration(w.t - w.cp.since)}` : ""}` };
-    if (w.cp.state === "pending") return { tone: "wake", text: "Waking up" };
-    if (w.cp.state === "stopping") return { tone: "wake", text: "Going to sleep" };
-    const gpu =
-      w.gpu.state === "none" ? "GPU off" : w.vllm.state === "ready" ? "GPU ready" : w.gpu.state === "running" ? "GPU starting" : `GPU ${w.gpu.state}`;
-    return { tone: "awake", text: `Awake · ${active} job${active === 1 ? "" : "s"} in progress · ${gpu}` };
-  }));
-  const rate = useTwin((s) => {
-    const w = s.world;
-    const gpuOn = w.gpu.state !== "none" && w.gpu.state !== "launch_failed";
-    return ((gpuOn ? RATE.gpu : 0) + (w.cp.state !== "stopped" ? RATE.controlPlane : 0)).toFixed(2);
-  });
-  const scenario = SCENARIOS.find((s) => s.id === scenarioId);
+  const source = useTwin((s) => s.source);
+  const live = useTwin((s) => s.live);
+  const recordedRunCount = useTwin((s) => s.recorded.length);
+  const loadSource = useTwin((s) => s.loadSource);
+  const status = useTwin(
+    useShallow((s) => {
+      const w = s.world;
+      const active = Object.values(w.jobs).filter((j) => j.step !== "done").length;
+      const queued = Object.values(w.queueDepth).reduce((n, q) => n + q.visible + q.inFlight, 0) - w.queueDepth.workflowDlq.visible - w.queueDepth.gpuDlq.visible;
+      const work = Math.max(active, queued);
+      if (w.cp.state === "stopped") {
+        return { tone: "sleep", text: w.cp.since > 0 && w.t - w.cp.since < 30 * 86_400_000 && w.cp.since > s.timeline.srcStart ? `Asleep for ${duration(w.t - w.cp.since)}` : "Asleep" };
+      }
+      if (w.cp.state === "pending") return { tone: "wake", text: "Waking up" };
+      if (w.cp.state === "stopping") return { tone: "wake", text: "Going to sleep" };
+      const gpu =
+        w.gpu.state === "none" ? "GPU off" : w.vllm.state === "ready" ? "GPU ready" : w.gpu.state === "running" ? "GPU running" : `GPU ${w.gpu.state.replace("_", " ")}`;
+      return { tone: "awake", text: `Awake · ${work} job${work === 1 ? "" : "s"} in progress · ${gpu}` };
+    }),
+  );
+  const rate = useRates().nowPerHour;
+  const scenario = SCENARIOS.find((s) => s.id === source.id);
+  // Re-render once a second for the "updated … ago" text.
+  useTwin((s) => (s.mode === "live" ? Math.floor(s.world.t / 1000) : 0));
 
-  return (
-    <div className="status" role="status">
-      <span className={`chip ${status.tone}`}>{status.text}</span>
-      <span className="chip rate mobile-only">${rate}/h</span>
-      {mode === "live" ? (
+  let note: React.ReactNode;
+  if (mode === "replay") {
+    note =
+      source.kind === "run" ? (
         <span className="status-note">
-          Not connected to AWS yet. This is where the last sample run ended.
-          <button className="link" onClick={() => loadScenario(scenarioId)}>
-            Watch a sample run
-          </button>
+          <span className="recorded">Recorded</span> run of {dateUtc(source.start)}
         </span>
       ) : (
         <span className="status-note">
           <span className="sample">Sample</span> {scenario?.title}
         </span>
-      )}
+      );
+  } else if (live.status === "off") {
+    note = (
+      <span className="status-note">
+        Not connected to AWS yet. This is where the last sample run ended.
+        <button className="link" onClick={() => loadSource(sourceKey(source))}>
+          Watch a sample run
+        </button>
+      </span>
+    );
+  } else if (live.status === "connecting") {
+    note = <span className="status-note">Connecting to telemetry…</span>;
+  } else if (live.status === "error") {
+    note = <span className="status-note warn">Telemetry unreachable. Showing the last state received.</span>;
+  } else {
+    const updated = live.generatedAt ? ago(Date.now() - live.generatedAt) : "";
+    note = (
+      <span className={`status-note${live.status === "stale" ? " warn" : ""}`}>
+        {live.status === "stale" ? `Telemetry stale: last update ${updated}.` : `Live from AWS · updated ${updated}`}
+        {live.run && !live.run.open && recordedRunCount > 0 && (
+          <button className="link" onClick={() => loadSource(`run:${live.run!.id}`)}>
+            Replay the last run
+          </button>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <div className="status" role="status">
+      <span className={`chip ${live.status === "stale" && mode === "live" ? "stale" : status.tone}`}>{status.text}</span>
+      <span className="chip rate mobile-only">${rate.toFixed(2)}/h</span>
+      {note}
     </div>
   );
 }

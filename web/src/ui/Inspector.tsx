@@ -5,6 +5,7 @@ import { describe } from "./describe";
 export function Inspector() {
   const selected = useTwin((s) => s.selected);
   const select = useTwin((s) => s.select);
+  const mode = useTwin((s) => s.mode);
   const line = useTwin((s) => (s.selected ? describe(s.selected, s.world) : ""));
   if (!selected) return null;
   const info = OBJECTS[selected];
@@ -25,6 +26,7 @@ export function Inspector() {
         {line}
       </p>
       <p>{info.plain}</p>
+      {mode === "live" && <p className="muted small">Live data: {info.live}</p>}
       <details>
         <summary>How it works</summary>
         <ul>

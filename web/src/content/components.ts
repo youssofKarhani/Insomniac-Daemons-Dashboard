@@ -34,6 +34,8 @@ export interface ObjectInfo {
   plain: string;
   engineer: string[];
   alwaysOn: boolean;
+  /** How the live view learns this object's state, and how far behind it can be. */
+  live: string;
 }
 
 export const OBJECTS: Record<ObjectId, ObjectInfo> = {
@@ -44,6 +46,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Every morning at 06:55 UTC the clock taps the switch so the platform is awake before the day's scheduled jobs.",
     engineer: ["Cron rule targets the wake Lambda.", "Wakes the control plane even when no job is waiting; the watchdog puts it back to sleep if nothing arrives."],
     alwaysOn: true,
+    live: "Not observed live yet. A morning wake shows up as the tower starting.",
   },
   gateway: {
     name: "Front door",
@@ -52,6 +55,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Where every request comes in. It is always open and costs nothing while nobody calls it.",
     engineer: ["Routes: /jobs, /wake, /status, /health, all proxied to one Lambda.", "Serverless, so it is reachable even while every server is off."],
     alwaysOn: true,
+    live: "Not observed live yet (needs the wake Lambda log subscription, Phase D).",
   },
   lambda: {
     name: "Wake switch",
@@ -64,6 +68,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
       "Also handles the EC2 stop guard (see the latch on the GPU cradle).",
     ],
     alwaysOn: true,
+    live: "Not observed live yet (needs the wake Lambda log subscription, Phase D).",
   },
   workflowQueue: {
     name: "Inbox",
@@ -72,6 +77,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Jobs wait here safely, even while everything else is switched off.",
     engineer: ["Standard queue, visibility timeout 300 s.", "Messages are only deleted after the result is stored, so a crash never loses a job."],
     alwaysOn: true,
+    live: "Polled every minute (approximate SQS counts), so up to about 75 s behind.",
   },
   workflowDlq: {
     name: "Inbox dead letters",
@@ -80,6 +86,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "A job that keeps failing ends up here instead of blocking the others.",
     engineer: ["Redrive after 3 receives (maxReceiveCount = 3).", "Retention 14 days."],
     alwaysOn: true,
+    live: "Polled every minute, so up to about 75 s behind.",
   },
   gpuQueue: {
     name: "GPU queue",
@@ -88,6 +95,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Only jobs that really need the big model come here. Anything waiting here is what makes the GPU wake up.",
     engineer: ["Separate queue so CPU-only work never triggers GPU scaling.", "Visibility timeout 360 s; the worker extends it every 30 s while the GPU starts."],
     alwaysOn: true,
+    live: "Polled every minute (approximate SQS counts), so up to about 75 s behind.",
   },
   gpuDlq: {
     name: "GPU dead letters",
@@ -96,6 +104,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Where a GPU job goes after three failed tries.",
     engineer: ["Redrive after 3 receives.", "Spot reclaims and gateway errors count as receives."],
     alwaysOn: true,
+    live: "Polled every minute, so up to about 75 s behind.",
   },
   keda: {
     name: "GPU demand lever",
@@ -104,14 +113,16 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Watches the GPU queue. When work appears it asks for one model server; when the queue has been quiet for two minutes it asks for none.",
     engineer: ["Polls every 15 s, counts in-flight messages too.", "Scales the vLLM Deployment between 0 and 1 replicas.", "Cooldown 120 s."],
     alwaysOn: false,
+    live: "Not observed live yet (needs the in-cluster exporter, Phase D).",
   },
   controlPlane: {
     name: "Control tower",
     aws: "Amazon EC2 + K3s",
     object: "Tower",
     plain: "A small, cheap server that runs the platform's brain. It sleeps when there is nothing to do and is woken by the switch.",
-    engineer: ["Single-node K3s cluster in the first Availability Zone.", "Stopped (not terminated) when idle, so it keeps its disk and boots in about a minute."],
+    engineer: ["Single-node K3s cluster in the first Availability Zone.", "t3.medium (checked against the live instance).", "Stopped (not terminated) when idle, so it keeps its disk and boots in about a minute.", "From fully asleep, a GPU job waits for the tower and its services first, then the 90–150 s GPU start."],
     alwaysOn: false,
+    live: "Observed: EC2 state changes arrive within seconds; a check every minute catches anything missed.",
   },
   pods: {
     name: "Platform services",
@@ -120,6 +131,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "The programs that take jobs from the inbox, talk to the models and keep records.",
     engineer: ["FastAPI orchestrator, AI worker (two polling loops), LiteLLM gateway.", "Shown as inferred until an in-cluster exporter reports pod readiness."],
     alwaysOn: false,
+    live: "Inferred: assumed ready 40 s after the tower is running, until the in-cluster exporter reports it.",
   },
   laya: {
     name: "LAYA checkpoint",
@@ -132,6 +144,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
       "Verifies each output (pass at 0.40); failures trigger a bounded regeneration, then 'needs review'.",
     ],
     alwaysOn: false,
+    live: "Not observed live yet (needs the in-cluster exporter, Phase D).",
   },
   watchdog: {
     name: "Idle timer",
@@ -140,6 +153,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "After 30 quiet minutes it turns the tower off.",
     engineer: ["Idle means both queues empty, no leases, no pending outbox, GPU group at zero.", "Scales the GPU group to 0 before shutting down."],
     alwaysOn: false,
+    live: "Not observed directly. Its effect shows up as the tower stopping.",
   },
   autoscaler: {
     name: "Capacity arm",
@@ -148,6 +162,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "When the model server has nowhere to run, it orders a GPU machine. When the machine is no longer needed, it sends it away.",
     engineer: ["Sees the pending GPU pod and sets the Auto Scaling group to 1.", "Removes the node after 2 minutes unneeded."],
     alwaysOn: false,
+    live: "Observed: the GPU group size is checked every minute, so up to about 75 s behind.",
   },
   gpuNode: {
     name: "GPU cassette",
@@ -156,9 +171,10 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "The expensive part. It only exists while there is GPU work, then it is handed back.",
     engineer: [
       "Group size 0 to 1, pinned to the second Availability Zone because the model disk lives there.",
-      "Launches On-Demand today; Spot is configured but blocked by an organisation policy.",
+      "Launches On-Demand today; Spot is configured but blocked by an organisation policy.", "GPU start is 90–150 s from launch to model ready. It does not include waking the tower.",
     ],
     alwaysOn: false,
+    live: "Observed: GPU instance state changes, launch failures and Spot warnings arrive within seconds.",
   },
   guard: {
     name: "Stop guard",
@@ -167,14 +183,16 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "A second safety: when the tower switches off, this latch makes sure no GPU can start.",
     engineer: ["On control-plane stopping/stopped, the Lambda sets the GPU group to 0 and suspends Launch.", "Released again when the tower is woken."],
     alwaysOn: true,
+    live: "Observed: the launch lock is checked every minute.",
   },
   modelVolume: {
     name: "Model drive",
     aws: "Amazon EBS gp3, 50 GB",
     object: "Indigo drive with two slots",
     plain: "Keeps the model files between visits so a new GPU machine does not download 18 GB every time.",
-    engineer: ["Holds qwen-general (loaded) and qwen-coder (parked).", "Attached at boot; same Availability Zone as the GPU."],
+    engineer: ["Holds qwen-general. A second slot is reserved for qwen-coder; its weights are not confirmed as installed.", "Attached at boot; same Availability Zone as the GPU."],
     alwaysOn: true,
+    live: "Not observed live yet, so Live does not show it docking (needs the in-cluster exporter, Phase D).",
   },
   vllm: {
     name: "Model core",
@@ -183,6 +201,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "The large language model itself. It fills up as the model loads and glows while it writes.",
     engineer: ["One model resident at a time in 24 GB of VRAM.", "Reached through the LiteLLM gateway on the control plane."],
     alwaysOn: false,
+    live: "Not observed live yet (needs the in-cluster exporter, Phase D).",
   },
   s3: {
     name: "Archive",
@@ -191,6 +210,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Finished results are filed here.",
     engineer: ["outputs/ holds results; inputs/ holds large payloads and expires after 30 days.", "The twin only ever sees object keys, never contents."],
     alwaysOn: true,
+    live: "Not observed live yet.",
   },
   ssm: {
     name: "Operator console",
@@ -199,6 +219,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "How the owner reaches the servers without opening any ports.",
     engineer: ["Port forwarding over SSM; no SSH, no inbound rules.", "The twin shows only whether a session is open."],
     alwaysOn: true,
+    live: "Not observed live yet.",
   },
   vpc: {
     name: "Network",
@@ -207,5 +228,6 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Two separate rooms in the same building. The tower lives in one, the GPU in the other.",
     engineer: ["Public subnets with an internet gateway, no NAT gateway.", "The GPU is pinned to the second zone because EBS volumes cannot cross zones."],
     alwaysOn: true,
+    live: "Static: the network does not change at run time.",
   },
 };

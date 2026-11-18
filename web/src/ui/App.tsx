@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DATA_URL, LIVE_POLL_MS } from "../data/remote";
 import { World } from "../scene/World";
 import { useTwin } from "../store";
 import { Inspector } from "./Inspector";
@@ -32,6 +33,34 @@ function useTicker() {
   }, []);
 }
 
+/** Polls the public telemetry while the tab is visible. Does nothing without VITE_TWIN_DATA_URL. */
+function useTelemetry() {
+  useEffect(() => {
+    if (!DATA_URL) return;
+    const s = useTwin.getState();
+    s.refreshLive();
+    s.refreshRuns();
+    s.refreshCosts();
+    const every = (ms: number, fn: () => void) =>
+      window.setInterval(() => {
+        if (!document.hidden) fn();
+      }, ms);
+    const timers = [
+      every(LIVE_POLL_MS, () => useTwin.getState().refreshLive()),
+      every(60_000, () => useTwin.getState().refreshRuns()),
+      every(30 * 60_000, () => useTwin.getState().refreshCosts()),
+    ];
+    const onVisible = () => {
+      if (!document.hidden) useTwin.getState().refreshLive();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      timers.forEach((t) => window.clearInterval(t));
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+}
+
 function useKeyboard() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -54,6 +83,7 @@ function useKeyboard() {
 
 export function App() {
   useTicker();
+  useTelemetry();
   useKeyboard();
   const webgl = useMemo(hasWebGL, []);
   const mode = useTwin((s) => s.mode);

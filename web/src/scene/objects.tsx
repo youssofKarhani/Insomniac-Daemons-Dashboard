@@ -407,7 +407,9 @@ export function GpuNode() {
         segments={48}
         progress={() => {
           const w = W();
-          if (w.gpu.state !== "running" || w.vllm.state !== "absent" || w.keda.replicas !== 0) return -1;
+          // Only after KEDA was seen releasing the model server during this GPU's life; live
+          // telemetry without the in-cluster exporter never reports that, so no ring is drawn.
+          if (w.gpu.state !== "running" || w.vllm.state !== "absent" || w.keda.replicas !== 0 || w.keda.since < w.gpu.since) return -1;
           return clamp01((w.t - w.keda.since) / (CONFIG.caScaleDownSeconds * 1000));
         }}
       />

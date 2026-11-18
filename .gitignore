@@ -4,8 +4,16 @@ dist/
 *.tfstate
 *.tfstate.*
 .terraform/
+*.plan
+.terraform.lock.hcl.bak
+.build/
+.venv/
+__pycache__/
+.pytest_cache/
+web/public/dev-data/
 .env
 .env.*
 !.env.example
+!web/.env.fixture
 *.log
 .DS_Store

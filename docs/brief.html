@@ -78,10 +78,10 @@ pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius
     <tbody>
       <tr><td>One SQS queue plus a DLQ</td><td>Two queues, each with its own DLQ: the workflow queue <code>…-ai-jobs</code> and a GPU queue <code>…-gpu-inference-jobs</code>. KEDA watches only the GPU queue.</td><td>The "GPU needed" moment is a visible hand-off between two queues. CPU-only work never touches the second one.</td></tr>
       <tr><td>GPU nodes run on Spot</td><td>The ASG launches <b>On-Demand</b> today because an organisation SCP denies Spot. Spot is configured and switchable.</td><td>The twin must show the real purchase option, and cost estimates must use the matching price.</td></tr>
-      <tr><td>Control plane is a <code>t3.small</code></td><td>Docs say <code>t3.small</code>; <code>terraform.tfvars</code> sets <code>t3.medium</code>.</td><td>Confirm against the live instance before labelling it or pricing it.</td></tr>
+      <tr><td>Control plane is a <code>t3.small</code></td><td>Docs say <code>t3.small</code>; <code>terraform.tfvars</code> sets <code>t3.medium</code>.</td><td><b>Checked 18 Nov 2026: the live instance is <code>t3.medium</code>.</b> The twin labels and prices it as that.</td></tr>
       <tr><td>LAYA does "initial routing when applicable"</td><td>LAYA runs as its own Decision Service pod. It gates relevance before GPU work, answers decision-only jobs on CPU, and <b>verifies every Qwen output</b> afterwards, triggering bounded regeneration.</td><td>LAYA appears twice in a job's life. Its gate is the reason many jobs never wake the GPU, which is the platform's main idea.</td></tr>
       <tr><td>Outcomes: done, failed, retried</td><td>Job states include <code>completed</code>, <code>rejected</code> (gated out), <code>needs_review</code> (failed verification), <code>failed</code>, <code>cancelled</code>. Steps: VALIDATING, DECIDING, WAITING_GPU, GENERATING, VERIFYING.</td><td>Each outcome needs its own visual ending.</td></tr>
-      <tr><td>"vLLM loads the appropriate model"</td><td>vLLM serves one model fixed at pod start (<code>qwen-general</code> today). The EBS cache holds a second (<code>qwen-coder</code>) that is not hot-swapped.</td><td>Don't animate per-job model switching. Show the resident model and the parked one.</td></tr>
+      <tr><td>"vLLM loads the appropriate model"</td><td>vLLM serves one model fixed at pod start (<code>qwen-general</code> today). The EBS cache has a directory for a second model (<code>qwen-coder</code>); whether its weights are actually installed is unconfirmed.</td><td>Don't animate per-job model switching. Show the resident model; show the coder slot as reserved, not loaded, until its weights are confirmed.</td></tr>
       <tr><td>"Multiple AZs"</td><td>Two subnets: control plane in <code>eu-north-1a</code>, GPU node and model EBS pinned to <code>eu-north-1c</code>. No NAT gateway.</td><td>The AZ split is real and explains a design constraint (EBS can't cross AZs). A good story beat.</td></tr>
       <tr><td>EventBridge does scheduled wake-ups</td><td>Two rules: a 06:55 UTC pre-warm cron, and an EC2 state-change guard that forces the GPU ASG to 0 and suspends launches when the control plane stops.</td><td>Wake-ups can happen with zero jobs. Shutdown has a second, independent safety path.</td></tr>
       <tr><td>Jobs enter through API Gateway</td><td>Three ingress paths: API Gateway → Lambda → SQS; direct <code>POST /jobs</code> to the orchestrator over an SSM tunnel; and synchronous OpenAI-style calls straight to LiteLLM that bypass the queues.</td><td>The twin must not assume every job starts at the portal.</td></tr>
@@ -290,7 +290,8 @@ flowchart TD
   <h2><span class="n">12</span>Open decisions for the owner</h2>
   <ul>
     <li>Public name for the site.</li>
-    <li>Control-plane instance size actually running (<code>t3.small</code> or <code>t3.medium</code>).</li>
+    <li><s>Control-plane instance size actually running.</s> Resolved: <code>t3.medium</code> (checked 18 Nov 2026).</li>
+    <li>Whether the <code>qwen-coder</code> weights are installed on the model drive.</li>
     <li>Whether to allow a small exporter on the control plane for pod and job-step events.</li>
     <li>Whether to enable a CloudTrail trail for ASG attribution.</li>
     <li>Hosting choice and domain.</li>

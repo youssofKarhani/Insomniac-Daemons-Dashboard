@@ -4,7 +4,7 @@ import { parseEvents, sortEvents, type TwinEvent } from "./events";
 import { reduce, reduceAll } from "./reduce";
 import { ReplayCursor, buildTimeline, playToSrc, srcToPlay } from "./replay";
 import { initialState, type WorldState } from "./state";
-import { CONFIG } from "./timings";
+import { CONFIG, fullColdStartSampleSeconds, gpuStartSampleSeconds } from "./timings";
 
 function finalState(events: TwinEvent[]): WorldState {
   return reduceAll(sortEvents(events), initialState(0));
@@ -107,10 +107,28 @@ describe("reducer", () => {
     expect(job.receiveCount).toBe(CONFIG.maxReceiveCount);
   });
 
+  it("keeps the GPU start inside the documented range and the full cold start longer", () => {
+    const gpu = gpuStartSampleSeconds();
+    expect(gpu).toBeGreaterThanOrEqual(CONFIG.coldStartSeconds[0]);
+    expect(gpu).toBeLessThanOrEqual(CONFIG.coldStartSeconds[1]);
+    expect(fullColdStartSampleSeconds()).toBeGreaterThan(CONFIG.coldStartSeconds[1]);
+  });
+
   it("the warm job skips the cold start", () => {
     const ev = sortEvents(buildScenario("warm-pair"));
     const launches = ev.filter((e) => e.kind === "gpu.instance" && e.data.state === "launching");
     expect(launches).toHaveLength(1);
+  });
+});
+
+describe("live telemetry", () => {
+  it("tracks polled queue depth without inventing jobs", () => {
+    const ev: TwinEvent = { id: "q1", ts: 10, kind: "queue.depth", confidence: "observed", data: { queue: "gpu", visible: 2, inFlight: 1 } };
+    const s = reduce(initialState(0), ev);
+    expect(s.queueDepth.gpu).toEqual({ visible: 2, inFlight: 1 });
+    expect(Object.keys(s.jobs)).toHaveLength(0);
+    const bad = reduce(s, { ...ev, id: "q2", data: { queue: "nope", visible: 5, inFlight: 0 } });
+    expect(bad.queueDepth).toEqual(s.queueDepth);
   });
 });
 

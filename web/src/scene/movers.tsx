@@ -2,12 +2,13 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { TwinEvent } from "../model/events";
-import type { JobView } from "../model/state";
+import { QUEUE_LOCATION, type JobView, type QueueName } from "../model/state";
 import { useTwin } from "../store";
 import { C, RM, W, approach } from "./kit";
 import { ANCHOR, POS, stackOffset } from "./layout";
 
 const CRATE_VISIBLE = 6;
+const MAX_ANON = 6;
 
 function stampColor(j: JobView): string {
   if (j.outcome === "dlq") return C.red;
@@ -62,12 +63,33 @@ function Ticket({ job, target }: { job: JobView; target: [number, number, number
 /** Job tickets, each easing toward the anchor of its current location. */
 export function Tickets() {
   const jobs = useTwin((s) => s.world.jobs);
+  const depth = useTwin((s) => s.world.queueDepth);
   const placed = useMemo(() => {
     const byLoc = new Map<string, JobView[]>();
     for (const j of Object.values(jobs)) {
       const list = byLoc.get(j.location) ?? [];
       list.push(j);
       byLoc.set(j.location, list);
+    }
+    // Live telemetry reports how many messages wait, not which jobs: draw unnamed tickets for the rest.
+    for (const [q, d] of Object.entries(depth) as [QueueName, { visible: number; inFlight: number }][]) {
+      const loc = QUEUE_LOCATION[q];
+      const list = byLoc.get(loc) ?? [];
+      const missing = Math.min(MAX_ANON, d.visible + d.inFlight - list.length);
+      for (let i = 0; i < missing; i += 1) {
+        list.push({
+          id: `anon-${q}-${i}`,
+          jobType: "unknown",
+          location: loc,
+          step: "queued",
+          inFlight: i < d.inFlight,
+          attempts: 0,
+          receiveCount: 0,
+          enqueuedAt: 0,
+          seq: -100 + i,
+        });
+      }
+      byLoc.set(loc, list);
     }
     const out: { job: JobView; target: [number, number, number] }[] = [];
     for (const [loc, list] of byLoc) {
@@ -80,7 +102,7 @@ export function Tickets() {
       });
     }
     return out;
-  }, [jobs]);
+  }, [jobs, depth]);
   return (
     <group>
       {placed.map(({ job, target }) => (

@@ -3,8 +3,14 @@ import { caption } from "../content/captions";
 import { SCENARIOS } from "../data/scenarios";
 import type { EventKind } from "../model/events";
 import { srcToPlay } from "../model/replay";
-import { useTwin } from "../store";
-import { clockUtc, dateUtc } from "./format";
+import type { RunSummary } from "../data/remote";
+import { sourceKey, useTwin } from "../store";
+import { clockUtc, dateUtc, duration } from "./format";
+
+function runLabel(r: RunSummary): string {
+  const gpu = r.gpuLaunches > 0 ? `GPU ${duration(r.gpuSeconds * 1000)}` : "CPU only";
+  return `${dateUtc(r.start)} ${clockUtc(r.start).slice(0, 5)} · ${gpu}`;
+}
 
 const SPEEDS = [1, 4, 15, 60];
 
@@ -21,10 +27,12 @@ export function ReplayBar() {
   const play = useTwin((s) => s.play);
   const playing = useTwin((s) => s.playing);
   const speed = useTwin((s) => s.speed);
-  const scenarioId = useTwin((s) => s.scenarioId);
+  const source = useTwin((s) => s.source);
+  const recorded = useTwin((s) => s.recorded);
+  const loading = useTwin((s) => s.loading);
   const now = useTwin((s) => s.world.t);
   const last = useTwin((s) => s.history[s.history.length - 1]);
-  const { setPlaying, setSpeed, seek, step, loadScenario } = useTwin.getState();
+  const { setPlaying, setSpeed, seek, step, loadSource } = useTwin.getState();
 
   const total = timeline.playDuration || 1;
   const ticks = useMemo(
@@ -44,14 +52,25 @@ export function ReplayBar() {
       </p>
       <div className="replay-row">
         <label className="visually-hidden" htmlFor="scenario">
-          Sample run
+          Run to replay
         </label>
-        <select id="scenario" value={scenarioId} onChange={(e) => loadScenario(e.target.value)}>
-          {SCENARIOS.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.title}
-            </option>
-          ))}
+        <select id="scenario" value={sourceKey(source)} onChange={(e) => loadSource(e.target.value)} disabled={loading}>
+          {recorded.length > 0 && (
+            <optgroup label="Recorded runs">
+              {recorded.map((r) => (
+                <option key={r.id} value={`run:${r.id}`}>
+                  {runLabel(r)}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          <optgroup label="Samples">
+            {SCENARIOS.map((s) => (
+              <option key={s.id} value={`sample:${s.id}`}>
+                {s.title}
+              </option>
+            ))}
+          </optgroup>
         </select>
         <div className="transport">
           <button className="icon" onClick={() => step(-1)} aria-label="Previous event">

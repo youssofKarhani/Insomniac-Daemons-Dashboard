@@ -92,5 +92,12 @@ export function caption(e: TwinEvent): string {
       return bool(e, "locked") ? "The stop guard locks GPU launches." : "GPU launches are allowed again.";
     case "ssm.session":
       return bool(e, "open") ? "An operator session opens." : "The operator session closes.";
+    case "queue.depth": {
+      const names: Record<string, string> = { workflow: "inbox", gpu: "GPU queue", workflowDlq: "inbox dead-letter bin", gpuDlq: "GPU dead-letter bin" };
+      const total = num(e, "visible") + num(e, "inFlight");
+      const where = names[str(e, "queue")] ?? "queue";
+      if (total === 0) return `The ${where} is empty.`;
+      return `${total} message${total === 1 ? "" : "s"} in the ${where}${num(e, "inFlight") ? `, ${num(e, "inFlight")} being worked on` : ""}.`;
+    }
   }
 }

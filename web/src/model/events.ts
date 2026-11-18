@@ -30,6 +30,7 @@ export const EVENT_KINDS = [
   "watchdog.idle", // idle watchdog started (data.idle=true) or reset (false) its timer
   "guard.latch", // EventBridge stop guard: ASG launches suspended (data.locked)
   "ssm.session", // operator session open/closed. data.open
+  "queue.depth", // polled counts. data.queue: workflow | gpu | workflowDlq | gpuDlq, data.visible, data.inFlight
 ] as const;
 
 export type EventKind = (typeof EVENT_KINDS)[number];

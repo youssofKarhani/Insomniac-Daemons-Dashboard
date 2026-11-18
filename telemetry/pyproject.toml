@@ -1,0 +1,14 @@
+[project]
+name = "sleepless-twin-telemetry"
+version = "0.1.0"
+description = "AWS events in, redacted public JSON out, for the Sleepless Twin."
+requires-python = ">=3.12"
+# boto3 is provided by the Lambda runtime; nothing else is needed at run time.
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8.3"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

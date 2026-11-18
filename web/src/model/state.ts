@@ -28,7 +28,15 @@ export type JobStep =
   | "retrying"
   | "done";
 
-export type Outcome = "completed" | "rejected" | "needs_review" | "decided" | "dlq";
+export type QueueName = "workflow" | "gpu" | "workflowDlq" | "gpuDlq";
+export const QUEUE_LOCATION: Record<QueueName, JobLocation> = {
+  workflow: "workflow",
+  gpu: "gpuQueue",
+  workflowDlq: "workflowDlq",
+  gpuDlq: "gpuDlq",
+};
+
+export type Outcome ="completed" | "rejected" | "needs_review" | "decided" | "dlq";
 
 export interface JobView {
   id: string;
@@ -71,6 +79,8 @@ export interface WorldState {
   /** Last time each always-on piece flashed. */
   pulses: { gateway?: number; route?: string; lambda?: number; clock?: number; crate?: number };
   jobs: Record<string, JobView>;
+  /** Polled queue counts. Live telemetry knows how many messages wait, not which jobs they are. */
+  queueDepth: Record<QueueName, { visible: number; inFlight: number }>;
   counters: Record<Outcome, number>;
   /** Accumulated running seconds, for cost estimates. */
   runtime: { gpuMs: number; cpMs: number };
@@ -92,6 +102,12 @@ export function initialState(t = 0): WorldState {
     ssmOpen: false,
     pulses: {},
     jobs: {},
+    queueDepth: {
+      workflow: { visible: 0, inFlight: 0 },
+      gpu: { visible: 0, inFlight: 0 },
+      workflowDlq: { visible: 0, inFlight: 0 },
+      gpuDlq: { visible: 0, inFlight: 0 },
+    },
     counters: { completed: 0, rejected: 0, needs_review: 0, decided: 0, dlq: 0 },
     runtime: { gpuMs: 0, cpMs: 0 },
     seen: {},

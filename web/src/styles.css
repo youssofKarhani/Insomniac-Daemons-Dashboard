@@ -119,6 +119,9 @@ details ul { margin: 8px 0; padding-left: 18px; display: flex; flex-direction: c
 .meter { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; margin: 4px 0; }
 .meter span { display: block; height: 100%; background: var(--violet); }
 .ledger p { margin: 0; }
+.ledger-detail { display: flex; flex-direction: column; gap: 4px; }
+.ledger-detail summary { font-size: 12px; color: var(--muted); cursor: pointer; }
+.ledger-detail[open] summary { margin-bottom: 2px; }
 
 /* Replay */
 .replay {
@@ -148,6 +151,9 @@ details ul { margin: 8px 0; padding-left: 18px; display: flex; flex-direction: c
 .log li { display: grid; grid-template-columns: 64px 1fr; gap: 8px; font-size: 13px; }
 .log time { font-family: var(--mono); font-size: 11.5px; color: var(--muted); padding-top: 1px; }
 
+.recorded { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid var(--aqua); color: var(--aqua); border-radius: 4px; padding: 0 5px; margin-right: 4px; }
+.status-note.warn { color: var(--amber); }
+.chip.stale::before { background: var(--amber); }
 .mobile-only { display: none; }
 .chip.rate { color: var(--aqua); }
 .chip.rate::before { display: none; }
