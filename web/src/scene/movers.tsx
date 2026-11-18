@@ -2,7 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { TwinEvent } from "../model/events";
-import { QUEUE_LOCATION, type JobView, type QueueName } from "../model/state";
+import { QUEUE_LOCATION, namedPerQueue, type JobView, type QueueName } from "../model/state";
 import { useTwin } from "../store";
 import { C, RM, W, approach } from "./kit";
 import { ANCHOR, POS, stackOffset } from "./layout";
@@ -71,11 +71,13 @@ export function Tickets() {
       list.push(j);
       byLoc.set(j.location, list);
     }
-    // Live telemetry reports how many messages wait, not which jobs: draw unnamed tickets for the rest.
+    // Live telemetry reports how many messages wait, not which jobs: draw unnamed tickets
+    // only for depth beyond the named jobs that queue is still holding.
+    const named = namedPerQueue(jobs);
     for (const [q, d] of Object.entries(depth) as [QueueName, { visible: number; inFlight: number }][]) {
       const loc = QUEUE_LOCATION[q];
       const list = byLoc.get(loc) ?? [];
-      const missing = Math.min(MAX_ANON, d.visible + d.inFlight - list.length);
+      const missing = Math.min(MAX_ANON, d.visible + d.inFlight - named[q]);
       for (let i = 0; i < missing; i += 1) {
         list.push({
           id: `anon-${q}-${i}`,

@@ -31,6 +31,12 @@ variable "gpu_az" {
   default = "eu-north-1c"
 }
 
+variable "enable_ingest" {
+  description = "Expose the ingest Lambda through a function URL (Phase D). false removes the URL; the function stays."
+  type        = bool
+  default     = true
+}
+
 variable "model_volume_name" {
   description = "Name tag of the platform's model-cache EBS volume (read-only lookup for attachment state)."
   type        = string

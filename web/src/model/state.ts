@@ -36,6 +36,28 @@ export const QUEUE_LOCATION: Record<QueueName, JobLocation> = {
   gpuDlq: "gpuDlq",
 };
 
+/**
+ * Named jobs whose message still counts in each queue's depth: waiting in the tray, or
+ * held in flight by the worker (being scanned, waiting for or using the GPU). Live
+ * telemetry draws unnamed tickets only for depth beyond these, so no job appears twice.
+ */
+const HELD_AT: Record<QueueName, JobLocation[]> = {
+  workflow: ["workflow", "worker", "laya"],
+  gpu: ["gpuQueue", "core"],
+  workflowDlq: ["workflowDlq"],
+  gpuDlq: ["gpuDlq"],
+};
+
+export function namedPerQueue(jobs: Record<string, JobView>): Record<QueueName, number> {
+  const out: Record<QueueName, number> = { workflow: 0, gpu: 0, workflowDlq: 0, gpuDlq: 0 };
+  for (const j of Object.values(jobs)) {
+    for (const q of Object.keys(HELD_AT) as QueueName[]) {
+      if (HELD_AT[q].includes(j.location) && (j.step !== "done" || q === "workflowDlq" || q === "gpuDlq")) out[q] += 1;
+    }
+  }
+  return out;
+}
+
 export type Outcome ="completed" | "rejected" | "needs_review" | "decided" | "dlq";
 
 export interface JobView {

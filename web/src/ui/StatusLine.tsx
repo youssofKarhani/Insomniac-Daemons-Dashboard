@@ -1,4 +1,5 @@
 import { useShallow } from "zustand/react/shallow";
+import { STALE_AFTER_MS } from "../data/remote";
 import { SCENARIOS } from "../data/scenarios";
 import { useTwin, sourceKey } from "../store";
 import { useRates } from "./rates";
@@ -31,6 +32,10 @@ export function StatusLine() {
       return { tone: "awake", text: `Awake · ${work} job${work === 1 ? "" : "s"} in progress · ${gpu}` };
     }),
   );
+  // Only once an exporter has ever reported: then silence while the tower runs means job detail is missing.
+  const towerRunning = useTwin((s) => s.world.cp.state === "running");
+  const exporterSilent =
+    mode === "live" && towerRunning && live.exporterAt !== undefined && live.generatedAt !== undefined && live.generatedAt - live.exporterAt > STALE_AFTER_MS;
   const rate = useRates().nowPerHour;
   const scenario = SCENARIOS.find((s) => s.id === source.id);
   // Re-render once a second for the "updated … ago" text.
@@ -66,6 +71,7 @@ export function StatusLine() {
     note = (
       <span className={`status-note${live.status === "stale" ? " warn" : ""}`}>
         {live.status === "stale" ? `Telemetry stale: last update ${updated}.` : `Live from AWS · updated ${updated}`}
+        {exporterSilent && live.status !== "stale" && <span className="warn"> · Job detail unavailable</span>}
         {live.run && !live.run.open && recordedRunCount > 0 && (
           <button className="link" onClick={() => loadSource(`run:${live.run!.id}`)}>
             Replay the last run

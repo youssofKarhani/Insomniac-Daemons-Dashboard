@@ -38,10 +38,11 @@ export function caption(e: TwinEvent): string {
       return str(e, "queue") === "gpu" ? "The worker holds the job while the GPU gets ready." : "The worker takes the job from the inbox.";
     case "laya.gate": {
       const r = str(e, "result");
-      const p = num(e, "probability").toFixed(2);
-      if (r === "reject") return `LAYA rejects it (relevance ${p}). The GPU never wakes.`;
+      // Live telemetry carries no score (it lives only in the job's private output).
+      const p = typeof e.data.probability === "number" ? ` (relevance ${e.data.probability.toFixed(2)})` : "";
+      if (r === "reject") return `LAYA rejects it${p}. The GPU never wakes.`;
       if (r === "decision") return "LAYA answers this one on its own, on CPU.";
-      return `LAYA lets it through (relevance ${p}).`;
+      return `LAYA lets it through${p}.`;
     }
     case "keda.scale":
       return num(e, "replicas") > 0 ? "Work in the GPU queue: KEDA asks for a model server." : "Two quiet minutes: KEDA releases the model server.";

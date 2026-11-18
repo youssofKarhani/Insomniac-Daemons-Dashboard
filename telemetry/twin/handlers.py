@@ -1,6 +1,7 @@
 """Lambda entry points.
 
-telemetry_handler  EventBridge (EC2, Auto Scaling) and the 1-minute schedule.
+telemetry_handler  EventBridge (EC2, Auto Scaling), the 1-minute schedule, and
+                   batches forwarded by the ingest Lambda ({"twin": "ingest"}).
                    Runs with reserved concurrency 1 so meta updates never race.
 costs_handler      Daily schedule.
 """
@@ -191,7 +192,7 @@ def publish_all(store: Store, s3: Any, bucket: str, meta: Dict[str, Any], closed
     open_run = meta.get("openRun")
     run = open_run or meta.get("lastRun")
     events = store.run_events(run["id"]) if run else []
-    publish_live(s3, bucket, live_doc(now_ms, run, open_run is not None, events))
+    publish_live(s3, bucket, live_doc(now_ms, run, open_run is not None, events, meta.get("exporterAt")))
 
 
 def handle(event: Dict[str, Any], env: Env, clients: Clients, store: Store, now_ms: Optional[int] = None) -> Dict[str, Any]:
@@ -208,6 +209,13 @@ def handle(event: Dict[str, Any], env: Env, clients: Clients, store: Store, now_
         attached = read_model_attached(clients, env)
         events = poll_mod.diff(now, meta, queues, asg, cp_state, attached)
         meta["poll"] = poll_mod.snapshot(queues, asg, meta.get("poll") or {}, attached)
+    elif event.get("twin") == "ingest":
+        # From the ingest Lambda: already reduced to twin events with pseudonymous job ids.
+        # apply_events still runs every event through the allowlist.
+        events = [e for e in event.get("events") or [] if isinstance(e, dict)]
+        hb = event.get("exporterAt")
+        if isinstance(hb, int) and hb > int(meta.get("exporterAt") or 0):
+            meta["exporterAt"] = hb
     else:
         log.info("ignored event with source=%s", event.get("source"))
         return {"stored": 0}

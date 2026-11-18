@@ -3,7 +3,7 @@ import { SCENARIOS, buildScenario } from "../data/scenarios";
 import { parseEvents, sortEvents, type TwinEvent } from "./events";
 import { reduce, reduceAll } from "./reduce";
 import { ReplayCursor, buildTimeline, playToSrc, srcToPlay } from "./replay";
-import { initialState, type WorldState } from "./state";
+import { initialState, namedPerQueue, type WorldState } from "./state";
 import { CONFIG, fullColdStartSampleSeconds, gpuStartSampleSeconds } from "./timings";
 
 function finalState(events: TwinEvent[]): WorldState {
@@ -129,6 +129,22 @@ describe("live telemetry", () => {
     expect(Object.keys(s.jobs)).toHaveLength(0);
     const bad = reduce(s, { ...ev, id: "q2", data: { queue: "nope", visible: 5, inFlight: 0 } });
     expect(bad.queueDepth).toEqual(s.queueDepth);
+  });
+
+  it("counts named jobs the worker still holds against their queue", () => {
+    const ev = buildScenario("cold-gpu");
+    const cursor = new ReplayCursor(buildTimeline(ev), 50);
+    for (const e of sortEvents(ev)) {
+      const s = cursor.stateAt(e.ts);
+      const named = namedPerQueue(s.jobs);
+      const live = Object.values(s.jobs).filter((j) => j.step !== "done");
+      // A job is counted in at most one main queue at a time, and only while it is not done.
+      expect(named.workflow + named.gpu, e.id).toBeLessThanOrEqual(live.length);
+    }
+    const done = finalState(ev);
+    expect(namedPerQueue(done.jobs)).toEqual({ workflow: 0, gpu: 0, workflowDlq: 0, gpuDlq: 0 });
+    const dlq = finalState(buildScenario("retry-dlq"));
+    expect(namedPerQueue(dlq.jobs).gpuDlq).toBe(1);
   });
 });
 

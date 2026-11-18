@@ -77,14 +77,20 @@ def _put(bucket: Bucket, name: str, key: str, doc: Dict[str, Any], max_age: int)
     )
 
 
-def live_doc(now_ms: int, run: Optional[Dict[str, Any]], open_: bool, events: List[Dict[str, Any]]) -> Dict[str, Any]:
+def live_doc(
+    now_ms: int, run: Optional[Dict[str, Any]], open_: bool, events: List[Dict[str, Any]], exporter_at: Optional[int] = None
+) -> Dict[str, Any]:
     evs = sorted(clean_events(events), key=lambda e: (e["ts"], e["id"]))[-MAX_LIVE_EVENTS:]
-    return {
+    doc: Dict[str, Any] = {
         "schema": SCHEMA_VERSION,
         "generatedAt": now_ms,
         "run": {"id": run["id"], "start": run["start"], "end": run.get("end"), "open": open_} if run else None,
         "events": evs,
     }
+    # Last heartbeat from the in-cluster exporter; absent until an exporter has ever reported.
+    if isinstance(exporter_at, int):
+        doc["exporterAt"] = exporter_at
+    return doc
 
 
 def publish_live(bucket: Bucket, name: str, doc: Dict[str, Any]) -> None:

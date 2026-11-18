@@ -10,7 +10,8 @@ from typing import Any, Dict, List, Optional
 
 from .events import make
 
-PODS_READY_AFTER_MS = 40_000  # placeholder until an in-cluster exporter reports pod readiness
+PODS_READY_AFTER_MS = 40_000  # used only while no in-cluster exporter is reporting
+EXPORTER_FRESH_MS = 3 * 60_000
 
 
 def diff(
@@ -50,8 +51,10 @@ def diff(
         out.append(make("ebs.attached", now_ms, f"poll-ebs|{tick}", {"attached": model_attached}))
 
     # Inferred: platform services are ready some time after the host is running.
+    # Skipped while the in-cluster exporter is reporting, because it observes readiness.
     cp = meta.get("cp") or {}
-    if known_cp == "running" and cp.get("state") == "running" and not cp.get("podsEmitted"):
+    exporter_live = now_ms - int(meta.get("exporterAt") or 0) < EXPORTER_FRESH_MS
+    if known_cp == "running" and not exporter_live and cp.get("state") == "running" and not cp.get("podsEmitted"):
         if now_ms - cp.get("since", now_ms) >= PODS_READY_AFTER_MS:
             out.append(make("pods.ready", now_ms, f"poll-pods|{tick}", {"ready": True}, confidence="inferred"))
 

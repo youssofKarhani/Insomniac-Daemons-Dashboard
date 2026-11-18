@@ -70,7 +70,15 @@ terraform plan -out twin.plan
 terraform apply twin.plan
 ```
 
-Then build the site with `VITE_TWIN_DATA_URL` set to the `data_base_url` output, and add the site's origin to `allowed_origins`. Expected running cost is well under $5/month (Lambda and EventBridge within free tier, CloudFront and S3 cents, Cost Explorer about $0.90 for three requests a day). Billed figures are shown as usage before credits, with credits on their own line.
+Then build the site with `VITE_TWIN_DATA_URL` set to the `data_base_url` output, and add the site's origin to `allowed_origins`.
+
+The ingest Lambda (Phase D) refuses all input until its two secrets are set. Set each once with a random value; Terraform never holds them:
+
+```powershell
+foreach ($n in (terraform output -json ingest_secret_params | ConvertFrom-Json)) { $b = New-Object byte[] 48; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); aws ssm put-parameter --name $n --type SecureString --overwrite --value ([Convert]::ToBase64String($b).TrimEnd('=').Replace('+','-').Replace('/','_')) | Out-Null }
+```
+
+`terraform output ingest_url` is a write endpoint: it goes only into the exporter's configuration, never into the site or this repository. Expected running cost is well under $5/month (Lambda and EventBridge within free tier, CloudFront and S3 cents, Cost Explorer about $0.90 for three requests a day). Billed figures are shown as usage before credits, with credits on their own line.
 
 ## Rules
 

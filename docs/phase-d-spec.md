@@ -296,7 +296,7 @@ Each step is asked for separately. Later steps do not depend on earlier ones exc
 | # | Item | Approval | Switch |
 | --- | --- | --- | --- |
 | 1 | Model-volume attachment in the poll (section 5). **Done 2026-11-18.** | No: twin-only read permission | Remove from `poll.py` |
-| 2 | Ingest Lambda, SSM parameters, schema changes (sections 6–7) | No: twin-only resources, inert until a source sends | `enable_ingest` |
+| 2 | Ingest Lambda, SSM parameters, schema changes (sections 6–7). **Done 2026-11-18**; see section 14. | No: twin-only resources, inert until a source sends | `enable_ingest` |
 | 3 | Wake log subscription (section 4) | **Yes**: attaches to a platform log group | `enable_wake_log_subscription` |
 | 4 | Exporter in the cluster (section 3), after testing on the dev cluster | **Yes**: runs on the control plane | Scale to 0 or delete the namespace |
 | 5 | Guided tour, 2D fallback | No | — |
@@ -342,7 +342,35 @@ the twin works with or without them.
    public IP on every call.
 4. The API Gateway route has no authoriser (already known).
 
-## 14. Open questions for the owner
+## 14. As built (step 2)
+
+Differences from sections 6–7 found while building, and decisions taken:
+
+- **Function URL permissions.** AWS now requires two statements for a public URL:
+  `lambda:InvokeFunctionUrl` for everyone, and `lambda:InvokeFunction` limited by
+  `lambda:InvokedViaFunctionUrl = true`. The AWS provider (5.x) cannot set that condition, so
+  `infra/ingest.tf` manages that one statement with the AWS CLI from a `terraform_data` resource.
+  Plain `lambda:InvokeFunction` is never granted to everyone: it would let any AWS principal invoke the
+  function directly with a forged log batch and skip the signature check. The managed SCPs and RCPs
+  did not block the URL.
+- **Secrets** are created by Terraform with the placeholder `unset` and set once with the AWS CLI, so
+  they never sit in Terraform state. Until both are set, the function answers 503 to everything. An
+  unset value is not cached, so setting them takes effect on the next call.
+- **Exporter batch format** (also in `telemetry/twin/ingest.py`): `{"v": 1, "events": [{kind, ts,
+  key, data, job?, confidence?}]}`. `key` names the source fact (for example
+  `job|step|attempt|state`); it is only ever hashed with the job salt, so re-sends collapse to the same
+  event ids. Every POST that passes the signature counts as an exporter heartbeat, even with no events.
+- **Async hand-off** retries for up to 1 hour (`maximum_event_age_in_seconds` on the telemetry
+  Lambda), not 6 hours. The exporter's 6-hour re-send from `jobs.db` covers longer outages.
+- **"Job detail unavailable"** shows only once an exporter has ever reported (`exporterAt` present)
+  and has then been silent for 3 minutes while the tower runs. Before the exporter exists, Live
+  behaves exactly as in Phase C.
+- **Unnamed tickets** subtract named jobs still held by each queue, including jobs the worker holds
+  in flight (at the worker, the scanner or the core), not only those sitting in the tray
+  (`namedPerQueue` in `web/src/model/state.ts`).
+- **Published job ids** must match `^j[a-z]{10}$`; the scanner also blocks anything shaped like a UUID.
+
+## 15. Open questions for the owner
 
 - Approve items 3 and 4 in section 10, separately.
 - HMAC (recommended, no platform IAM change) or IAM-authenticated ingest for the exporter.

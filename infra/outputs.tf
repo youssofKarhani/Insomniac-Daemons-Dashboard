@@ -14,3 +14,17 @@ output "telemetry_function" {
 output "costs_function" {
   value = aws_lambda_function.costs.function_name
 }
+
+output "ingest_function" {
+  value = aws_lambda_function.ingest.function_name
+}
+
+# A write endpoint: never put it in the site, the public data or the repository.
+output "ingest_url" {
+  value     = var.enable_ingest ? aws_lambda_function_url.ingest[0].function_url : null
+  sensitive = true
+}
+
+output "ingest_secret_params" {
+  value = [aws_ssm_parameter.ingest_hmac.name, aws_ssm_parameter.job_salt.name]
+}

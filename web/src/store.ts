@@ -42,7 +42,7 @@ interface TwinStore {
   labels: boolean;
   reducedMotion: boolean;
 
-  live: { status: LiveStatus; generatedAt?: number; run?: LiveDoc["run"]; error?: string };
+  live: { status: LiveStatus; generatedAt?: number; run?: LiveDoc["run"]; exporterAt?: number; error?: string };
   recorded: RunSummary[];
   costs: CostsDoc | null;
   loading: boolean;
@@ -211,7 +211,7 @@ export const useTwin = create<TwinStore>((set, get) => ({
         liveFeed = prepare(doc.events);
       }
       const stale = Date.now() - doc.generatedAt > STALE_AFTER_MS;
-      set({ live: { status: stale ? "stale" : "connected", generatedAt: doc.generatedAt, run: doc.run } });
+      set({ live: { status: stale ? "stale" : "connected", generatedAt: doc.generatedAt, run: doc.run, exporterAt: doc.exporterAt } });
       if (get().mode === "live") set(stateAtNow(liveFeed.cursor));
     } catch (err) {
       if ((err as Error).name === "AbortError") return;

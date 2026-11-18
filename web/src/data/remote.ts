@@ -18,6 +18,8 @@ export const LiveDoc = z.object({
   generatedAt: z.number(),
   run: RunRef.nullable(),
   events: z.array(TwinEventSchema),
+  /** Last heartbeat of the in-cluster exporter (Phase D); absent if none has ever reported. */
+  exporterAt: z.number().optional(),
 });
 export type LiveDoc = z.infer<typeof LiveDoc>;
 

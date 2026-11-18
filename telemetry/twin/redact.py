@@ -23,9 +23,11 @@ FORBIDDEN = [
     ("execute-api", re.compile(r"execute-api", re.I)),
     ("queue-url", re.compile(r"sqs\.[a-z0-9-]+\.amazonaws", re.I)),
     ("receipt-or-key", re.compile(r"AKIA[0-9A-Z]{16}")),
+    # Raw platform job ids are UUIDs; only pseudonyms (j + 10 letters) may be published.
+    ("uuid", re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I)),
 ]
 
-_JOB_ID = re.compile(r"^job-[0-9a-f]{4,12}$")
+_JOB_ID = re.compile(r"^j[a-z]{10}$")
 
 
 class RedactionError(ValueError):
