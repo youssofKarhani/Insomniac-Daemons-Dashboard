@@ -80,6 +80,17 @@ foreach ($n in (terraform output -json ingest_secret_params | ConvertFrom-Json))
 
 `terraform output ingest_url` is a write endpoint: it goes only into the exporter's configuration, never into the site or this repository. Expected running cost is well under $5/month (Lambda and EventBridge within free tier, CloudFront and S3 cents, Cost Explorer about $0.90 for three requests a day). Billed figures are shown as usage before credits, with credits on their own line.
 
+## Phase D: application-level telemetry
+
+- `telemetry/twin/ingest.py`: ingest Lambda (signed exporter batches, wake Lambda log lines). Deployed.
+- Wake Lambda log subscription (five fixed phrases). Deployed.
+- `exporter/`: read-only in-cluster exporter for job steps and pod, KEDA, vLLM and autoscaler state. Built and tested; the owner deploys it, see [exporter/README.md](exporter/README.md).
+- Spec and as-built notes: [docs/phase-d-spec.md](docs/phase-d-spec.md).
+
+```bash
+cd exporter && uv run --group dev pytest   # exporter, end to end through ingest and telemetry
+```
+
 ## Rules
 
 See [CLAUDE.md](CLAUDE.md). The platform repository is read-only reference material.

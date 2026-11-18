@@ -1,0 +1,31 @@
+# Read-only: get and list on the few resources the twin shows. No watch, no secrets,
+# no configmaps, no write verbs, no KEDA objects.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: twin-exporter
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: twin-exporter-read
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "events"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: twin-exporter-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: twin-exporter-read
+subjects:
+  - kind: ServiceAccount
+    name: twin-exporter
+    namespace: sleepless-twin

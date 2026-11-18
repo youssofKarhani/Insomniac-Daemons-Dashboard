@@ -298,7 +298,7 @@ Each step is asked for separately. Later steps do not depend on earlier ones exc
 | 1 | Model-volume attachment in the poll (section 5). **Done 2026-11-18.** | No: twin-only read permission | Remove from `poll.py` |
 | 2 | Ingest Lambda, SSM parameters, schema changes (sections 6–7). **Done 2026-11-18**; see section 14. | No: twin-only resources, inert until a source sends | `enable_ingest` |
 | 3 | Wake log subscription (section 4). **Approved and done 2026-11-18**; see section 14. | **Yes**: attaches to a platform log group | `enable_wake_log_subscription` |
-| 4 | Exporter in the cluster (section 3), after testing on the dev cluster | **Yes**: runs on the control plane | Scale to 0 or delete the namespace |
+| 4 | Exporter in the cluster (section 3), after testing on the dev cluster. **Approved 2026-11-18; built and tested, not deployed**: the owner applies it (`exporter/README.md`); see section 14. | **Yes**: runs on the control plane | Scale to 0 or delete the namespace |
 | 5 | Guided tour, 2D fallback | No | — |
 
 ## 11. Acceptance tests
@@ -386,6 +386,32 @@ Step 3 (wake log subscription):
   events with pseudonymous job ids and no scanner hits. The local copy of the lines was deleted.
 - **Not yet seen end to end in AWS**: no matching line has been written since the filter was attached.
   The first will be the next 06:55 UTC pre-warm or the next accepted job.
+
+Step 4 (exporter, `exporter/`):
+
+- **How step rows are written** changed the design. The platform's `record_step` rewrites a row on
+  every state change: `started_at` keeps the first write, `completed_at` is the latest write and
+  `state` the latest state. So the exporter does not track transitions. When any of a job's rows
+  changes (cursor on `completed_at`), it reads all that job's rows and derives the job's events from
+  them (`job_events`), with stable keys. A restart re-sends the last 6 hours, and ingest collapses
+  the repeats.
+- **What that cannot show**: a step's intermediate state is overwritten, so "LAYA is scanning" is
+  not seen on its own; the gate result arrives with its outcome. A failed verification is
+  timestamped just before the next generation attempt starts.
+- **SQL** is limited to three queries with explicit columns (`SQLS` in `exporter.py`); a test fails if
+  any selects a private column or touches the outbox.
+- **Pod Security**: the namespace cannot enforce "baseline" or "restricted", because both forbid the
+  one read-only hostPath (the job store). It warns and audits at "restricted" instead; the pod itself
+  meets "restricted" otherwise (non-root, read-only root filesystem, no capabilities, seccomp).
+- **Packaging**: `exporter/kustomization.yaml` sits next to `exporter.py` because kustomize's
+  ConfigMap generator cannot read files outside its directory. Image `python:3.12-slim` pinned to its
+  multi-arch index digest.
+- **Tests** (13): every outcome's mapping, re-derivation stability, read-only open, job store
+  unavailable, Kubernetes change detection and read failures, signing (checked by the real ingest
+  verifier), backoff, heartbeat, queue cap, and the full path exporter → ingest → telemetry → public
+  files with secret text planted in every private column.
+- **Not deployed.** The cluster only runs while the platform is awake, and section 11 asks for a dev
+  cluster test first. `exporter/README.md` has the checks and the three deploy commands.
 
 ## 15. Open questions for the owner
 

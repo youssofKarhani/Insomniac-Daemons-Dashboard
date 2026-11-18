@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sleepless-twin
+  labels:
+    # Not enforced: the exporter needs one read-only hostPath (the job store), which both the
+    # "baseline" and "restricted" Pod Security profiles forbid. Everything else in the pod
+    # meets "restricted", so warn and audit at that level to flag any other drift.
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

@@ -1,0 +1,14 @@
+[project]
+name = "sleepless-twin-exporter"
+version = "0.1.0"
+description = "Read-only in-cluster exporter for the Sleepless Twin (Phase D). Standard library only."
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+# The end-to-end tests run the twin's real ingest and telemetry code.
+pythonpath = [".", "../telemetry", "../telemetry/tests"]
+testpaths = ["tests"]
