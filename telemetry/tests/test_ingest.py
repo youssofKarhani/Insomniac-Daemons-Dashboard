@@ -182,6 +182,17 @@ def test_log_lines_that_must_never_be_used() -> None:
     assert ingest.handle(logs_event(kind="CONTROL_MESSAGE"), secrets(), sink, now_ms=T0 + 5000) == {"accepted": 0}
 
 
+def test_subscription_filter_in_terraform_matches_the_parser() -> None:
+    from pathlib import Path
+
+    tf = (Path(__file__).resolve().parents[2] / "infra" / "ingest.tf").read_text(encoding="utf-8")
+    m = re.search(r'wake_filter_phrases\s*=\s*\[(.*?)\]', tf, re.S)
+    assert m, "wake_filter_phrases not found in infra/ingest.tf"
+    in_tf = re.findall(r'"([^"]+)"', m.group(1))
+    assert sorted(in_tf) == sorted(ingest.FILTER_PHRASES)
+    assert not any(c in p for p in in_tf for c in ":-\"?"), "CloudWatch filter terms must avoid : - \" ?"
+
+
 # ---- hand-off to the telemetry Lambda -------------------------------------------
 
 

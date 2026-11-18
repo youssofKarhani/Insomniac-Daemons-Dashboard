@@ -297,7 +297,7 @@ Each step is asked for separately. Later steps do not depend on earlier ones exc
 | --- | --- | --- | --- |
 | 1 | Model-volume attachment in the poll (section 5). **Done 2026-11-18.** | No: twin-only read permission | Remove from `poll.py` |
 | 2 | Ingest Lambda, SSM parameters, schema changes (sections 6–7). **Done 2026-11-18**; see section 14. | No: twin-only resources, inert until a source sends | `enable_ingest` |
-| 3 | Wake log subscription (section 4) | **Yes**: attaches to a platform log group | `enable_wake_log_subscription` |
+| 3 | Wake log subscription (section 4). **Approved and done 2026-11-18**; see section 14. | **Yes**: attaches to a platform log group | `enable_wake_log_subscription` |
 | 4 | Exporter in the cluster (section 3), after testing on the dev cluster | **Yes**: runs on the control plane | Scale to 0 or delete the namespace |
 | 5 | Guided tour, 2D fallback | No | — |
 
@@ -341,6 +341,9 @@ the twin works with or without them.
 3. **The wake Lambda logs the SQS queue URL** (it contains the account id) and the control plane's
    public IP on every call.
 4. The API Gateway route has no authoriser (already known).
+5. **The wake Lambda's log group has no retention period**, so the full request bodies from finding 2
+   are kept forever. Setting a retention (for example 14 days) limits that exposure even before the
+   logging itself is fixed.
 
 ## 14. As built (step 2)
 
@@ -369,6 +372,20 @@ Differences from sections 6–7 found while building, and decisions taken:
   in flight (at the worker, the scanner or the core), not only those sitting in the tray
   (`namedPerQueue` in `web/src/model/state.ts`).
 - **Published job ids** must match `^j[a-z]{10}$`; the scanner also blocks anything shaped like a UUID.
+
+Step 3 (wake log subscription):
+
+- **Phrases changed.** CloudWatch filter patterns did not match quoted phrases containing `:` or `-`
+  against the real logs, so two phrases from section 4 are shortened:
+  `Handling EventBridge scheduled` (was `… scheduled pre-warm`) and `Scaling down GPU ASG` (was
+  `EventBridge guard: Scaling down`). The parser in `twin/ingest.py` uses the same five phrases, and a
+  test keeps it equal to the filter in `infra/ingest.tf`.
+- **Checked against 30 days of real logs** before deploying: the five-phrase filter matched 114 lines
+  (22 pre-warms, 3 accepted jobs, 30 wake starts, 40 guard scale-downs, 19 launch resumes), none of
+  them `Received event:` or error lines. Run locally through the parser, they gave 160 allowlisted
+  events with pseudonymous job ids and no scanner hits. The local copy of the lines was deleted.
+- **Not yet seen end to end in AWS**: no matching line has been written since the filter was attached.
+  The first will be the next 06:55 UTC pre-warm or the next accepted job.
 
 ## 15. Open questions for the owner
 

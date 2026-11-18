@@ -40,6 +40,7 @@ one 50 GB gp3 model-cache volume, four queues present.
 | GPU group desired capacity, launch lock | `DescribeAutoScalingGroups` every minute | Up to about 75 s |
 | Model-cache volume attachment | `DescribeVolumes` by Name tag every minute | Up to about 75 s |
 | Catch-up for missed EC2 events | Same 1-minute poll | Up to about 75 s |
+| Pre-warm, accepted jobs, wake, stop guard | Wake Lambda log subscription to the ingest Lambda (five fixed phrases) | Seconds |
 | Pod readiness | Inferred 40 s after the tower is `running` | Not a measurement |
 | Publication | `live.json` cached 5 s at CloudFront; the page polls every 10 s | Adds up to 15 s |
 | Costs | Cost Explorer and Pricing API, daily at 06:15 UTC | Up to a day; billed data itself lags up to 24 h |
@@ -50,9 +51,9 @@ States are `WorldState` fields. "Live" says what the deployed telemetry feeds to
 
 | Object (scene) | AWS / platform | States shown | Driven by | Live | Connections drawn | Fallback |
 | --- | --- | --- | --- | --- | --- | --- |
-| Desk clock | EventBridge 06:55 pre-warm | pulse | `ingress.prewarm` | Not observed; the wake shows as the tower starting | signal to relay | Rest |
-| Arch | API Gateway HTTP API | route light pulse | `ingress.request` | Not observed (Phase D log subscription) | ticket to relay | Rest |
-| Relay | Wake Lambda | pulse | `lambda.invoked` | Not observed (Phase D) | ticket to inbox, signal to tower | Rest |
+| Desk clock | EventBridge 06:55 pre-warm | pulse | `ingress.prewarm` | Observed, seconds (wake Lambda log) | signal to relay | Rest |
+| Arch | API Gateway HTTP API | route light pulse | `ingress.request` | Observed for accepted jobs, seconds (wake Lambda log); `/status`, `/health` not shown | ticket to relay | Rest |
+| Relay | Wake Lambda | pulse | `lambda.invoked` | Observed, seconds (its own log: enqueue, wake) | ticket to inbox, signal to tower | Rest |
 | Inbox tray | SQS workflow queue | tickets (named in samples, unnamed from counts in Live) | `job.*`, `queue.depth` | Observed, polled | ticket to worker | Shows last count; stale banner |
 | Inbox bin | Workflow DLQ | tickets | `job.dlq`, `queue.depth` | Observed, polled | — | As above |
 | GPU tray | SQS GPU queue | tickets | `job.*`, `queue.depth` | Observed, polled | ticket to core; KEDA watches it | As above |
@@ -64,7 +65,7 @@ States are `WorldState` fields. "Live" says what the deployed telemetry feeds to
 | Dial | Idle watchdog | idle since | `watchdog.idle` | Not observed; its effect is the tower stopping | signal to tower | Rest |
 | Capacity arm | Cluster Autoscaler, GPU ASG desired | desired 0/1, who set it | `asg.desired` | Observed, polled (`by: observed`) | arm tower to cradle | Last known |
 | Cradle and cassette | GPU ASG instance | none, launching, running, terminating, launch_failed; Spot warning | `gpu.instance`, `spot.warning` | Observed, seconds | cable to tower once joined | Last known |
-| Latch | EC2 stop guard | locked / open | `guard.latch` | Observed, polled | latch on cradle | Last known |
+| Latch | EC2 stop guard | locked / open | `guard.latch` | Observed, seconds (wake Lambda log) and polled | latch on cradle | Last known |
 | Model drive | EBS gp3 50 GB model cache | attached / detached | `ebs.attached` | Observed, polled (volume attachment by Name tag) | docks to cassette | Last known; nothing emitted if the volume can't be identified |
 | Model core | vLLM (qwen-general) | absent, pending, loading, ready | `vllm.state` | Not observed (exporter) | ticket to core | Rest |
 | Crate | S3 results | pulse on result | `s3.result` | Not observed | ticket from core or gate | Rest |
@@ -112,5 +113,5 @@ Planned in [phase-d-spec.md](phase-d-spec.md).
 
 - Job identities and overlapping jobs in Live (needs the exporter; Live shows unnamed tickets from counts).
 - KEDA, LAYA, vLLM, pods: exporter, Phase D, with owner approval.
-- Gateway and wake Lambda: log subscription that keeps route and status only, Phase D, with owner approval.
+- Gateway `/status` and `/health` calls: not logged by a fixed phrase, so not shown.
 - The wake API has no authoriser. That is a platform fix for the owner, independent of the twin.

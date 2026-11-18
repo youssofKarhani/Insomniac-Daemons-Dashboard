@@ -135,13 +135,17 @@ def from_exporter(batch: Any, salt: bytes, now_ms: int) -> List[Dict[str, Any]]:
 # ---- wake Lambda log lines ----------------------------------------------------
 
 # Fixed phrases written by the platform's wake Lambda. Nothing else in a log line is used.
+# The subscription filter in infra/ingest.tf matches exactly FILTER_PHRASES (a test keeps them
+# in sync). They avoid ':' and '-', which CloudWatch filter patterns do not match reliably.
 _PUSHED = re.compile(r"\bJob (\S{1,100}) successfully pushed to SQS\b")
+PUSHED_PHRASE = "successfully pushed to SQS"
 LOG_RULES: List[Tuple[str, List[Tuple[str, Dict[str, Any]]]]] = [
-    ("Handling EventBridge scheduled pre-warm", [("ingress.prewarm", {})]),
+    ("Handling EventBridge scheduled", [("ingress.prewarm", {})]),
     ("Triggering StartInstances", [("lambda.invoked", {"action": "wake"})]),
-    ("EventBridge guard: Scaling down", [("asg.desired", {"desired": 0, "by": "guard"}), ("guard.latch", {"locked": True})]),
+    ("Scaling down GPU ASG", [("asg.desired", {"desired": 0, "by": "guard"}), ("guard.latch", {"locked": True})]),
     ("Resumed Launch and ReplaceUnhealthy", [("guard.latch", {"locked": False})]),
 ]
+FILTER_PHRASES = [PUSHED_PHRASE] + [p for p, _ in LOG_RULES]
 # Lines that must never be used even if they contain a phrase above.
 _NEVER = ("Received event:", "(ip:", "ERROR")
 

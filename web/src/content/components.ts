@@ -46,7 +46,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Every morning at 06:55 UTC the clock taps the switch so the platform is awake before the day's scheduled jobs.",
     engineer: ["Cron rule targets the wake Lambda.", "Wakes the control plane even when no job is waiting; the watchdog puts it back to sleep if nothing arrives."],
     alwaysOn: true,
-    live: "Not observed live yet. A morning wake shows up as the tower starting.",
+    live: "Observed: the scheduled pre-warm arrives within seconds from the wake switch's log.",
   },
   gateway: {
     name: "Front door",
@@ -55,7 +55,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Where every request comes in. It is always open and costs nothing while nobody calls it.",
     engineer: ["Routes: /jobs, /wake, /status, /health, all proxied to one Lambda.", "Serverless, so it is reachable even while every server is off."],
     alwaysOn: true,
-    live: "Not observed live yet (needs the wake Lambda log subscription, Phase D).",
+    live: "Observed for accepted jobs only, within seconds, from the wake switch's log. Status and health calls are not shown.",
   },
   lambda: {
     name: "Wake switch",
@@ -68,7 +68,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
       "Also handles the EC2 stop guard (see the latch on the GPU cradle).",
     ],
     alwaysOn: true,
-    live: "Not observed live yet (needs the wake Lambda log subscription, Phase D).",
+    live: "Observed: enqueue, wake and stop-guard actions arrive within seconds from its log.",
   },
   workflowQueue: {
     name: "Inbox",
@@ -183,7 +183,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "A second safety: when the tower switches off, this latch makes sure no GPU can start.",
     engineer: ["On control-plane stopping/stopped, the Lambda sets the GPU group to 0 and suspends Launch.", "Released again when the tower is woken."],
     alwaysOn: true,
-    live: "Observed: the launch lock is checked every minute.",
+    live: "Observed: lock and unlock arrive within seconds from the wake switch's log; the lock is also checked every minute.",
   },
   modelVolume: {
     name: "Model drive",

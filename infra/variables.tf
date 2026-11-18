@@ -37,6 +37,18 @@ variable "enable_ingest" {
   default     = true
 }
 
+variable "enable_wake_log_subscription" {
+  description = "Subscribe the ingest Lambda to fixed phrases in the wake Lambda's logs (Phase D step 3, approved 2026-11-18). false removes the filter."
+  type        = bool
+  default     = true
+}
+
+variable "wake_log_group" {
+  description = "Log group of the platform's wake Lambda."
+  type        = string
+  default     = "/aws/lambda/personal-ai-wake-ingress"
+}
+
 variable "model_volume_name" {
   description = "Name tag of the platform's model-cache EBS volume (read-only lookup for attachment state)."
   type        = string

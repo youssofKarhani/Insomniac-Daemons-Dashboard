@@ -96,6 +96,46 @@ resource "aws_lambda_permission" "ingest_url" {
   function_url_auth_type = "NONE"
 }
 
+# ---- Phase D step 3: wake Lambda log subscription ------------------------------------
+#
+# Approved by the owner on 2026-11-18. Attaches a subscription filter to the platform's
+# wake Lambda log group; the Lambda and its log group are otherwise untouched. Only lines
+# containing one of these phrases are delivered (checked against 30 days of real logs:
+# no full-request or error line matches). telemetry/tests/test_ingest.py keeps this list
+# equal to twin/ingest.py FILTER_PHRASES.
+locals {
+  wake_filter_phrases = [
+    "Handling EventBridge scheduled",
+    "successfully pushed to SQS",
+    "Triggering StartInstances",
+    "Scaling down GPU ASG",
+    "Resumed Launch and ReplaceUnhealthy",
+  ]
+}
+
+data "aws_cloudwatch_log_group" "wake" {
+  count = var.enable_wake_log_subscription ? 1 : 0
+  name  = var.wake_log_group
+}
+
+resource "aws_lambda_permission" "ingest_logs" {
+  count         = var.enable_wake_log_subscription ? 1 : 0
+  statement_id  = "wake-log-subscription"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ingest.function_name
+  principal     = "logs.amazonaws.com"
+  source_arn    = "${data.aws_cloudwatch_log_group.wake[0].arn}:*"
+}
+
+resource "aws_cloudwatch_log_subscription_filter" "wake" {
+  count           = var.enable_wake_log_subscription ? 1 : 0
+  name            = "${local.name}-wake"
+  log_group_name  = data.aws_cloudwatch_log_group.wake[0].name
+  filter_pattern  = join(" ", [for p in local.wake_filter_phrases : "?\"${p}\""])
+  destination_arn = aws_lambda_function.ingest.arn
+  depends_on      = [aws_lambda_permission.ingest_logs]
+}
+
 # Public function URLs also need lambda:InvokeFunction, limited by the condition
 # lambda:InvokedViaFunctionUrl = true so it cannot be used for direct invokes. The
 # AWS provider (5.x) cannot set that condition, so the AWS CLI manages this one
