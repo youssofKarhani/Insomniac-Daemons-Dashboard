@@ -30,3 +30,9 @@ variable "gpu_az" {
   type    = string
   default = "eu-north-1c"
 }
+
+variable "model_volume_name" {
+  description = "Name tag of the platform's model-cache EBS volume (read-only lookup for attachment state)."
+  type        = string
+  default     = "personal-ai-model-cache-ebs-1c"
+}

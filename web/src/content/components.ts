@@ -192,7 +192,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
     plain: "Keeps the model files between visits so a new GPU machine does not download 18 GB every time.",
     engineer: ["Holds qwen-general. A second slot is reserved for qwen-coder; its weights are not confirmed as installed.", "Attached at boot; same Availability Zone as the GPU."],
     alwaysOn: true,
-    live: "Not observed live yet, so Live does not show it docking (needs the in-cluster exporter, Phase D).",
+    live: "Observed: attachment is checked every minute, so docking shows up to about 75 s after it happens.",
   },
   vllm: {
     name: "Model core",

@@ -19,7 +19,9 @@ def diff(
     queues: Dict[str, Dict[str, int]],
     asg: Optional[Dict[str, Any]],
     cp_state: Optional[str],
+    model_attached: Optional[bool] = None,
 ) -> List[Dict[str, Any]]:
+    """model_attached: whether the model-cache volume is attached; None when unknown (read failed)."""
     prev = meta.get("poll") or {}
     out: List[Dict[str, Any]] = []
     tick = str(now_ms)
@@ -44,6 +46,9 @@ def diff(
         if prev.get("launchSuspended") != asg["launchSuspended"]:
             out.append(make("guard.latch", now_ms, f"poll-latch|{tick}", {"locked": asg["launchSuspended"]}))
 
+    if model_attached is not None and prev.get("modelAttached") != model_attached:
+        out.append(make("ebs.attached", now_ms, f"poll-ebs|{tick}", {"attached": model_attached}))
+
     # Inferred: platform services are ready some time after the host is running.
     cp = meta.get("cp") or {}
     if known_cp == "running" and cp.get("state") == "running" and not cp.get("podsEmitted"):
@@ -53,8 +58,15 @@ def diff(
     return out
 
 
-def snapshot(queues: Dict[str, Dict[str, int]], asg: Optional[Dict[str, Any]], prev: Dict[str, Any]) -> Dict[str, Any]:
+def snapshot(
+    queues: Dict[str, Dict[str, int]],
+    asg: Optional[Dict[str, Any]],
+    prev: Dict[str, Any],
+    model_attached: Optional[bool] = None,
+) -> Dict[str, Any]:
     snap = dict(prev)
+    if model_attached is not None:
+        snap["modelAttached"] = model_attached
     snap["queues"] = {**(prev.get("queues") or {}), **queues}
     if asg is not None:
         snap["desired"] = asg["desired"]

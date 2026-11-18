@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 CP_ID = "i-0aaaabbbbccccdddd"
 GPU_ID = "i-0eeeeffff11112222"
 OTHER_ID = "i-0333344445555666"
+MODEL_VOL_ID = "vol-0aaaabbbbccccdddd"
 ACCOUNT = "111122223333"
 
 
@@ -46,6 +47,9 @@ class FakeBucket:
 class FakeEc2:
     def __init__(self) -> None:
         self.cp_state = "stopped"
+        self.model_attached = False
+        self.model_volume_count = 1
+        self.volume_error = False
         self.instances = {
             CP_ID: {"InstanceType": "t3.medium", "Tags": [{"Key": "Name", "Value": "personal-ai-k3s-control-plane"}]},
             GPU_ID: {
@@ -62,6 +66,19 @@ class FakeEc2:
         inst["State"] = {"Name": self.cp_state if iid == CP_ID else "running"}
         inst["PrivateIpAddress"] = "10.0.1.15"
         return {"Reservations": [{"Instances": [inst]}]}
+
+    def describe_volumes(self, Filters: List[Dict[str, Any]]) -> Dict[str, Any]:
+        if self.volume_error:
+            raise AccessDenied()
+        name = next(f["Values"][0] for f in Filters if f["Name"] == "tag:Name")
+        vol = {
+            "VolumeId": MODEL_VOL_ID,
+            "Size": 50,
+            "State": "in-use" if self.model_attached else "available",
+            "Tags": [{"Key": "Name", "Value": "personal-ai-model-cache-ebs-1c"}],
+            "Attachments": [{"InstanceId": GPU_ID, "State": "attached", "Device": "/dev/sdf"}] if self.model_attached else [],
+        }
+        return {"Volumes": [vol] * self.model_volume_count if name == "personal-ai-model-cache-ebs-1c" else []}
 
     def describe_spot_price_history(self, **_: Any) -> Dict[str, Any]:
         return {"SpotPriceHistory": [{"SpotPrice": "0.3712"}]}

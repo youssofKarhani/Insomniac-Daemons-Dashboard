@@ -38,6 +38,7 @@ one 50 GB gp3 model-cache volume, four queues present.
 | EC2 state change (tower, GPU), Spot warning, GPU launch failure | EventBridge rule to the telemetry Lambda | Seconds |
 | Queue counts (4 queues) | `GetQueueAttributes` every minute (approximate counts) | Up to about 75 s |
 | GPU group desired capacity, launch lock | `DescribeAutoScalingGroups` every minute | Up to about 75 s |
+| Model-cache volume attachment | `DescribeVolumes` by Name tag every minute | Up to about 75 s |
 | Catch-up for missed EC2 events | Same 1-minute poll | Up to about 75 s |
 | Pod readiness | Inferred 40 s after the tower is `running` | Not a measurement |
 | Publication | `live.json` cached 5 s at CloudFront; the page polls every 10 s | Adds up to 15 s |
@@ -64,7 +65,7 @@ States are `WorldState` fields. "Live" says what the deployed telemetry feeds to
 | Capacity arm | Cluster Autoscaler, GPU ASG desired | desired 0/1, who set it | `asg.desired` | Observed, polled (`by: observed`) | arm tower to cradle | Last known |
 | Cradle and cassette | GPU ASG instance | none, launching, running, terminating, launch_failed; Spot warning | `gpu.instance`, `spot.warning` | Observed, seconds | cable to tower once joined | Last known |
 | Latch | EC2 stop guard | locked / open | `guard.latch` | Observed, polled | latch on cradle | Last known |
-| Model drive | EBS gp3 50 GB model cache | attached / detached | `ebs.attached` | Not observed (exporter) | docks to cassette | Rest, undocked |
+| Model drive | EBS gp3 50 GB model cache | attached / detached | `ebs.attached` | Observed, polled (volume attachment by Name tag) | docks to cassette | Last known; nothing emitted if the volume can't be identified |
 | Model core | vLLM (qwen-general) | absent, pending, loading, ready | `vllm.state` | Not observed (exporter) | ticket to core | Rest |
 | Crate | S3 results | pulse on result | `s3.result` | Not observed | ticket from core or gate | Rest |
 | Terminal | SSM Session Manager | open / closed | `ssm.session` | Not observed | — | Rest |
@@ -110,6 +111,6 @@ The coder model's slot on the drive is shown as reserved, not loaded, until its 
 Planned in [phase-d-spec.md](phase-d-spec.md).
 
 - Job identities and overlapping jobs in Live (needs the exporter; Live shows unnamed tickets from counts).
-- KEDA, LAYA, vLLM, model drive, pods: exporter, Phase D, with owner approval.
+- KEDA, LAYA, vLLM, pods: exporter, Phase D, with owner approval.
 - Gateway and wake Lambda: log subscription that keeps route and status only, Phase D, with owner approval.
 - The wake API has no authoriser. That is a platform fix for the owner, independent of the twin.

@@ -295,7 +295,7 @@ Each step is asked for separately. Later steps do not depend on earlier ones exc
 
 | # | Item | Approval | Switch |
 | --- | --- | --- | --- |
-| 1 | Model-volume attachment in the poll (section 5) | No: twin-only read permission | Remove from `poll.py` |
+| 1 | Model-volume attachment in the poll (section 5). **Done 2026-11-18.** | No: twin-only read permission | Remove from `poll.py` |
 | 2 | Ingest Lambda, SSM parameters, schema changes (sections 6–7) | No: twin-only resources, inert until a source sends | `enable_ingest` |
 | 3 | Wake log subscription (section 4) | **Yes**: attaches to a platform log group | `enable_wake_log_subscription` |
 | 4 | Exporter in the cluster (section 3), after testing on the dev cluster | **Yes**: runs on the control plane | Scale to 0 or delete the namespace |

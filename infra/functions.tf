@@ -43,7 +43,7 @@ data "aws_iam_policy_document" "telemetry" {
   }
   statement {
     sid       = "DescribeOnly"
-    actions   = ["ec2:DescribeInstances", "autoscaling:DescribeAutoScalingGroups"]
+    actions   = ["ec2:DescribeInstances", "ec2:DescribeVolumes", "autoscaling:DescribeAutoScalingGroups"]
     resources = ["*"] # these Describe calls do not support resource-level permissions
   }
 }

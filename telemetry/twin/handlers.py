@@ -39,6 +39,7 @@ class Env:
         self.region = e.get("AWS_REGION", "eu-north-1")
         self.gpu_type = e.get("GPU_INSTANCE_TYPE", "g5.xlarge")
         self.gpu_az = e.get("GPU_AZ", "eu-north-1c")
+        self.model_volume_name = e.get("MODEL_VOLUME_NAME", "personal-ai-model-cache-ebs-1c")
 
 
 class Clients:
@@ -124,6 +125,24 @@ def read_asg(clients: Clients, env: Env) -> Optional[Dict[str, Any]]:
     return None
 
 
+def read_model_attached(clients: Clients, env: Env) -> Optional[bool]:
+    """Whether the model-cache volume is attached to an instance. None if unknown.
+
+    Exactly one volume must carry the Name tag; anything else is treated as unknown
+    rather than guessed. Only the attachment state is used; no ids leave this function.
+    """
+    try:
+        r = clients.ec2.describe_volumes(Filters=[{"Name": "tag:Name", "Values": [env.model_volume_name]}])
+    except Exception as exc:  # noqa: BLE001
+        log.warning("volume read failed: %s", type(exc).__name__)
+        return None
+    vols = r.get("Volumes", [])
+    if len(vols) != 1:
+        log.warning("expected one model volume, found %d", len(vols))
+        return None
+    return any(a.get("State") == "attached" for a in vols[0].get("Attachments", []))
+
+
 def read_cp_state(clients: Clients, env: Env) -> Optional[str]:
     try:
         r = clients.ec2.describe_instances(InstanceIds=[env.cp_instance])
@@ -186,8 +205,9 @@ def handle(event: Dict[str, Any], env: Env, clients: Clients, store: Store, now_
         queues = read_queues(clients, env)
         asg = read_asg(clients, env)
         cp_state = read_cp_state(clients, env)
-        events = poll_mod.diff(now, meta, queues, asg, cp_state)
-        meta["poll"] = poll_mod.snapshot(queues, asg, meta.get("poll") or {})
+        attached = read_model_attached(clients, env)
+        events = poll_mod.diff(now, meta, queues, asg, cp_state, attached)
+        meta["poll"] = poll_mod.snapshot(queues, asg, meta.get("poll") or {}, attached)
     else:
         log.info("ignored event with source=%s", event.get("source"))
         return {"stored": 0}

@@ -193,5 +193,6 @@ locals {
     QUEUE_URLS        = jsonencode({ for k, q in data.aws_sqs_queue.q : k => q.url })
     GPU_INSTANCE_TYPE = var.gpu_instance_type
     GPU_AZ            = var.gpu_az
+    MODEL_VOLUME_NAME = var.model_volume_name
   }
 }

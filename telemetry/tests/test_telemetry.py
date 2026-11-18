@@ -17,6 +17,7 @@ from fakes import (
     ACCOUNT,
     CP_ID,
     GPU_ID,
+    MODEL_VOL_ID,
     OTHER_ID,
     FakeAsg,
     FakeBucket,
@@ -35,7 +36,7 @@ Q = {
     "gpuDlq": "https://sqs.eu-north-1.amazonaws.com/111122223333/personal-ai-gpu-inference-jobs-dlq",
 }
 
-FORBIDDEN_LITERALS = [CP_ID, GPU_ID, OTHER_ID, ACCOUNT, "10.0.1.15", "arn:aws", "https://", "personal-ai-gpu-asg"]
+FORBIDDEN_LITERALS = [CP_ID, GPU_ID, OTHER_ID, MODEL_VOL_ID, "/dev/sdf", ACCOUNT, "10.0.1.15", "arn:aws", "https://", "personal-ai-gpu-asg"]
 
 
 class World:
@@ -93,7 +94,10 @@ def run_full_cycle(w: World) -> None:
     w.state_change(GPU_ID, "pending", iso(T0 + 190_000), T0 + 190_000)
     w.state_change(OTHER_ID, "running", iso(T0 + 195_000), T0 + 195_000)  # unrelated instance
     w.state_change(GPU_ID, "running", iso(T0 + 220_000), T0 + 220_000)
+    w.ec2.model_attached = True
+    w.poll(T0 + 240_000)  # model drive docked
     w.sqs.depth[Q["gpu"]] = (0, 0)
+    w.ec2.model_attached = False
     w.asg.desired = 0
     w.poll(T0 + 600_000)
     w.state_change(GPU_ID, "shutting-down", iso(T0 + 610_000), T0 + 610_000)
@@ -134,6 +138,25 @@ def test_full_cycle_records_one_run_with_expected_story() -> None:
     live = w.s3.objects["live.json"]
     assert live["run"]["open"] is False
     assert live["events"][-1]["data"]["state"] == "terminated"
+
+
+def test_model_volume_attachment_is_reported_on_change_only() -> None:
+    w = World()
+    run_full_cycle(w)
+    doc = w.s3.objects[f"runs/{w.s3.objects['runs/index.json']['runs'][0]['id']}.json"]
+    att = [(e["data"]["attached"], e["confidence"]) for e in doc["events"] if e["kind"] == "ebs.attached"]
+    # Baseline "detached" was seen while asleep (no run), so the run holds dock then undock.
+    assert att == [(True, "observed"), (False, "observed")]
+
+
+def test_model_volume_unknown_emits_nothing() -> None:
+    for setup in ({"model_volume_count": 0}, {"model_volume_count": 2}, {"volume_error": True}):
+        w = World()
+        for k, v in setup.items():
+            setattr(w.ec2, k, v)
+        w.poll(T0)
+        meta_poll = w.store.get_meta().get("poll") or {}
+        assert "modelAttached" not in meta_poll, setup
 
 
 def test_nothing_identifying_is_ever_published() -> None:
