@@ -144,7 +144,14 @@ class FakeCe:
                     {"TimePeriod": {"Start": "2026-11-01"}, "Groups": [g(["Amazon Elastic Compute Cloud - Compute", "Usage"], "3.5")]},
                 ]
             }
-        return {"ResultsByTime": [{"TimePeriod": {"Start": "2026-11-01"}, "Total": {"UnblendedCost": {"Amount": "0.21"}}}]}
+        # DAILY by usage type: 1 Nov to 17 Nov (End is exclusive), steady storage, GPU on 14 Nov.
+        out = []
+        for day in range(1, 18):
+            groups = [g(["EUN1-EBS:VolumeUsage.gp3"], "0.22"), g(["EUN1-EBS:SnapshotUsage"], "0.028")]
+            if day == 14:
+                groups.append(g(["EUN1-BoxUsage:g5.xlarge"], "1.07"))
+            out.append({"TimePeriod": {"Start": f"2026-11-{day:02d}"}, "Groups": groups})
+        return {"ResultsByTime": out}
 
 
 class FakePricing:

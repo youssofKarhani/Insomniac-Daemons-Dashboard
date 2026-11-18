@@ -56,6 +56,16 @@ export const CostsDoc = z.object({
         }),
       ),
       days: z.array(z.object({ date: z.string(), total: z.number() })),
+      /** Monthly cost while fully asleep (storage), measured from recent billed days. */
+      floor: z
+        .object({
+          monthly: z.number(),
+          parts: z.array(z.object({ name: z.string(), monthly: z.number() })),
+          days: z.number(),
+          through: z.string(),
+        })
+        .nullable()
+        .optional(),
     }),
     z.object({ error: z.string() }),
   ]),

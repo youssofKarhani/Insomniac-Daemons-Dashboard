@@ -116,17 +116,56 @@ def billed(ce: Any, today: date, months: int = 6, gpu_type: str = "", cp_type: s
             }
         )
 
+    # Daily by usage type: the month's daily totals, plus enough earlier days to
+    # measure the storage floor even early in a month.
+    daily_start = min(month_start(today), today - timedelta(days=FLOOR_WINDOW_DAYS + FLOOR_LAG_DAYS))
     daily = ce.get_cost_and_usage(
-        TimePeriod={"Start": month_start(today).isoformat(), "End": end.isoformat()},
+        TimePeriod={"Start": daily_start.isoformat(), "End": end.isoformat()},
         Granularity="DAILY",
         Metrics=["UnblendedCost"],
         Filter=USAGE_ONLY,
+        GroupBy=[{"Type": "DIMENSION", "Key": "USAGE_TYPE"}],
     )
-    days = [
-        {"date": r["TimePeriod"]["Start"], "total": round(float(r["Total"]["UnblendedCost"]["Amount"]), 4)}
-        for r in daily.get("ResultsByTime", [])
-    ]
-    return {"currency": currency, "months": out_months, "days": days}
+    per_day: Dict[str, Dict[str, float]] = {}
+    for r in daily.get("ResultsByTime", []):
+        acc = per_day.setdefault(r["TimePeriod"]["Start"], {})
+        for g in r.get("Groups", []):
+            name = component_of(g["Keys"][0], gpu_type, cp_type)
+            acc[name] = acc.get(name, 0.0) + float(g["Metrics"]["UnblendedCost"]["Amount"])
+    this_month = month_start(today).isoformat()
+    days = [{"date": d, "total": round(sum(v.values()), 4)} for d, v in sorted(per_day.items()) if d >= this_month]
+    return {"currency": currency, "months": out_months, "days": days, "floor": storage_floor(per_day, today)}
+
+
+# The floor is measured over complete days that Cost Explorer has finished billing.
+FLOOR_WINDOW_DAYS = 7
+FLOOR_LAG_DAYS = 2
+FLOOR_PARTS = ["Disks", "Disk snapshots"]
+DAYS_PER_MONTH = 30.4
+
+
+def storage_floor(per_day: Dict[str, Dict[str, float]], today: date) -> Optional[Dict[str, Any]]:
+    """What the platform costs per month while fully asleep: storage billed whether awake or not.
+
+    Measured from the last FLOOR_WINDOW_DAYS complete billed days, so it follows real
+    volume and snapshot changes without needing EC2 describe permissions.
+    """
+    last = today - timedelta(days=FLOOR_LAG_DAYS)
+    window = [(last - timedelta(days=i)).isoformat() for i in range(FLOOR_WINDOW_DAYS)]
+    seen = [d for d in window if d in per_day]
+    if not seen:
+        return None
+    parts = []
+    for name in FLOOR_PARTS:
+        avg = sum(per_day[d].get(name, 0.0) for d in seen) / len(seen)
+        if avg > 0:
+            parts.append({"name": name, "monthly": round(avg * DAYS_PER_MONTH, 2)})
+    return {
+        "monthly": round(sum(p["monthly"] for p in parts), 2),
+        "parts": parts,
+        "days": len(seen),
+        "through": seen[0],
+    }
 
 
 def on_demand_price(pricing: Any, instance_type: str, region: str) -> Optional[float]:

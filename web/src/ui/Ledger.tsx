@@ -36,6 +36,10 @@ export function Ledger() {
       return m ?? null;
     }),
   );
+  const floor = useTwin((s) => {
+    const b = s.costs?.billed;
+    return b && !("error" in b) ? b.floor ?? null : null;
+  });
   const billedError = useTwin((s) => (s.costs?.billed && "error" in s.costs.billed ? s.costs.billed.error : null));
   const prewarm = useTwin(useShallow((s) => idlePrewarms(s.recorded, billed?.month)));
 
@@ -52,6 +56,12 @@ export function Ledger() {
         <span>Compute now</span>
         <b>${rates.nowPerHour.toFixed(2)}/h</b>
       </div>
+      {floor && floor.monthly > 0 && (
+        <div className="ledger-row" title={floor.parts.map((p) => `${p.name} ${usd(p.monthly)}/mo`).join(", ")}>
+          <span>Asleep floor (storage)</span>
+          <b>{usd(floor.monthly)}/mo</b>
+        </div>
+      )}
       {billed && (
         <>
           <div className="ledger-row">
@@ -106,6 +116,9 @@ export function Ledger() {
       <p className="muted small">
         {showRun && saved > 0 ? `${Math.round(saved * 100)}% less over ${duration(v.spanS * 1000)}. ` : ""}
         {showRun ? "Always on means GPU and tower running the whole time; disks cost the same either way and are left out. " : ""}
+        {floor && floor.monthly > 0
+          ? `Disks and snapshots are billed even while everything sleeps; floor measured over the last ${floor.days} billed days. `
+          : ""}
         {rates.basis === "list" ? "Estimates use AWS list prices." : "Estimates use sample rates."}
         {billed ? " Usage from Cost Explorer, before credits, up to a day behind." : ""}
         {billedError ? " Billed costs unavailable." : ""}

@@ -207,6 +207,15 @@ def test_costs_document() -> None:
         ],
     }
     assert len(ce.calls) == 3
+    # Asleep floor: storage only, from the 7 complete days ending two days back (9-15 Nov).
+    # A GPU day inside the window must not raise it.
+    assert doc["billed"]["floor"] == {
+        "monthly": 7.54,
+        "parts": [{"name": "Disks", "monthly": 6.69}, {"name": "Disk snapshots", "monthly": 0.85}],
+        "days": 7,
+        "through": "2026-11-15",
+    }
+    assert doc["billed"]["days"][13] == {"date": "2026-11-14", "total": 1.318}
     assert all("Filter" in c for c in ce.calls if c.get("GroupBy", [{}])[0].get("Key") != "SERVICE")
     assert doc["billed"]["months"][1]["partial"] is True
     assert doc["rates"]["gpu"] == {"instanceType": "g5.xlarge", "onDemand": 1.092, "spot": 0.3712}

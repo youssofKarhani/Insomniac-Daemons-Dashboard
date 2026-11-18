@@ -97,6 +97,9 @@ The coder model's slot on the drive is shown as reserved, not loaded, until its 
   shows what the platform used. Credits are shown on their own line.
 - **By component** groups usage types: GPU compute, control-plane compute, disks, snapshots, data
   transfer, other. Disks and snapshots are charged whether the platform is awake or not.
+- **Asleep floor** is what the platform costs per month with everything stopped: disk and snapshot
+  charges averaged over the last 7 complete billed days (ending two days back, because Cost Explorer
+  lags), times 30.4. Measured, not configured, so it follows volume and snapshot changes.
 - **Morning wakes with no GPU work** is an estimate: recorded runs starting within 5 minutes of 06:55 UTC
   with no GPU time, priced at the tower's list rate.
 - **Paid vs always on** (Replay) compares the run's GPU and tower time at list price with both running for
