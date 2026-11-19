@@ -9,6 +9,7 @@ import { ObjectNav } from "./ObjectNav";
 import { ReplayBar } from "./ReplayBar";
 import { StatusLine } from "./StatusLine";
 import { Tour } from "./Tour";
+import { Schematic } from "./Schematic";
 import { TOUR } from "../content/tour";
 
 function hasWebGL(): boolean {
@@ -103,19 +104,18 @@ export function App() {
   const setLabels = useTwin((s) => s.setLabels);
   const [logOpen, setLogOpen] = useState(false);
   const touring = useTwin((s) => s.tour !== null);
+  const chosenView = useTwin((s) => s.view);
+  const setView = useTwin((s) => s.setView);
+  // Without WebGL the schematic is the only view.
+  const view = webgl ? chosenView : "2d";
+  const hasSelection = useTwin((s) => s.selected !== null);
   const startTour = useTwin((s) => s.startTour);
   const tourPanel = useTwin((s) => (s.tour !== null ? TOUR[s.tour].panel : undefined));
 
   return (
-    <div className={`app${touring ? " touring" : ""}${tourPanel ? ` touring-${tourPanel}` : ""}`}>
+    <div className={`app view-${view}${hasSelection ? " has-selection" : ""}${touring ? " touring" : ""}${tourPanel ? ` touring-${tourPanel}` : ""}`}>
       <div className="stage">
-        {webgl ? (
-          <World />
-        ) : (
-          <div className="no-webgl">
-            <p>This browser can't show the 3D view. The event log below still follows the run.</p>
-          </div>
-        )}
+        {view === "3d" ? <World /> : <Schematic />}
       </div>
 
       <header className="top">
@@ -136,10 +136,22 @@ export function App() {
             <span className="desktop-only">Guided tour</span>
             <span className="mobile-only">Tour</span>
           </button>
-          <button className="ghost" aria-pressed={labels} onClick={() => setLabels(!labels)}>
-            <span className="desktop-only">{labels ? "Hide labels" : "Show labels"}</span>
-            <span className="mobile-only">Labels</span>
-          </button>
+          {webgl && (
+            <button
+              className="ghost"
+              onClick={() => setView(view === "3d" ? "2d" : "3d")}
+              aria-label={view === "3d" ? "Switch to the 2D schematic" : "Switch to the 3D desk"}
+              title={view === "3d" ? "Switch to the 2D schematic" : "Switch to the 3D desk"}
+            >
+              {view === "3d" ? "2D" : "3D"}
+            </button>
+          )}
+          {view === "3d" && (
+            <button className="ghost" aria-pressed={labels} onClick={() => setLabels(!labels)}>
+              <span className="desktop-only">{labels ? "Hide labels" : "Show labels"}</span>
+              <span className="mobile-only">Labels</span>
+            </button>
+          )}
           <button className="ghost" aria-pressed={logOpen} onClick={() => setLogOpen(!logOpen)}>
             <span className="desktop-only">Event log</span>
             <span className="mobile-only">Log</span>
@@ -152,7 +164,7 @@ export function App() {
       <Inspector />
       <Ledger />
       {touring ? <Tour /> : mode === "replay" && <ReplayBar />}
-      {(logOpen || !webgl) && <EventLog onClose={webgl ? () => setLogOpen(false) : undefined} />}
+      {logOpen && <EventLog onClose={() => setLogOpen(false)} />}
     </div>
   );
 }

@@ -85,6 +85,7 @@ foreach ($n in (terraform output -json ingest_secret_params | ConvertFrom-Json))
 - `telemetry/twin/ingest.py`: ingest Lambda (signed exporter batches, wake Lambda log lines). Deployed.
 - Wake Lambda log subscription (five fixed phrases). Deployed.
 - Guided tour: 13 stops through a sample cold start and a LAYA rejection, from the front door to the asleep floor in the ledger (`web/src/content/tour.ts`). Works offline, labelled SAMPLE, respects reduced motion.
+- 2D view: an SVG schematic from the same world state, chosen automatically without WebGL and offered as a toggle (`web/src/ui/Schematic.tsx`). State is written as text as well as colour.
 - `exporter/`: read-only in-cluster exporter for job steps and pod, KEDA, vLLM and autoscaler state. Built and tested; the owner deploys it, see [exporter/README.md](exporter/README.md).
 - Spec and as-built notes: [docs/phase-d-spec.md](docs/phase-d-spec.md).
 

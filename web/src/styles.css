@@ -26,7 +26,50 @@ button, select, input { font: inherit; color: inherit; }
 
 .app { position: relative; height: 100%; }
 .stage { position: absolute; inset: 0; }
-.no-webgl { display: grid; place-items: center; height: 100%; color: var(--muted); padding: 24px; text-align: center; }
+/* 2D schematic */
+.schematic { position: absolute; inset: 0; padding: 124px 24px 212px; display: flex; flex-direction: column; align-items: center; }
+.schematic svg { flex: 1; width: 100%; min-height: 0; max-width: 1180px; }
+/* On wide screens keep the schematic clear of the inspector while an object is selected. */
+@media (min-width: 1100px) { .has-selection .schematic.wide { padding-right: 380px; } }
+.touring .schematic-key { visibility: hidden; }
+.schematic-key { margin: 6px 0 0; text-align: center; }
+.schematic .district rect { fill: rgba(30, 40, 87, 0.55); stroke: var(--line); stroke-width: 1; }
+.schematic .district.platform rect { fill: #28336c; stroke: #4a55a0; }
+.schematic .district text { fill: var(--aqua); font: 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.sbox { cursor: pointer; outline: none; }
+.sbox .frame { fill: var(--panel-solid); stroke: var(--line); stroke-width: 1.5; }
+.sbox .stripe { fill: var(--muted); }
+.sbox .name { fill: var(--fg); font: 600 13px var(--body); }
+.sbox .state { fill: var(--muted); font: 12px var(--mono); }
+.sbox .inf, .sbox .more { fill: var(--lav-edge); font: 10px var(--mono); }
+.sbox.inferred .frame { stroke-dasharray: 5 4; }
+.sbox.tone-off .frame { fill: #1a2250; }
+.sbox.tone-off .name { fill: var(--muted); }
+.sbox.tone-off .stripe { fill: #3a4688; }
+.sbox.tone-idle .stripe { fill: var(--lav); }
+.sbox.tone-always .stripe { fill: var(--aqua); }
+.sbox.tone-always .frame { stroke: rgba(95, 211, 192, 0.45); }
+.sbox.tone-busy .frame { fill: #233a6a; stroke: var(--aqua); }
+.sbox.tone-busy .stripe { fill: var(--aqua); }
+.sbox.tone-busy .state { fill: var(--aqua); }
+.sbox.tone-starting .frame { stroke: var(--violet); }
+.sbox.tone-starting .stripe { fill: var(--violet); }
+.sbox.tone-starting .state { fill: var(--violet); }
+.sbox.tone-warn .frame { stroke: var(--amber); }
+.sbox.tone-warn .stripe { fill: var(--amber); }
+.sbox.tone-warn .state { fill: var(--amber); }
+.sbox.tone-fail .frame { stroke: #ff8a8a; }
+.sbox.tone-fail .stripe { fill: #ff8a8a; }
+.sbox.tone-fail .state { fill: #ff8a8a; }
+.sbox.selected .frame, .sbox:focus-visible .frame { stroke: var(--aqua); stroke-width: 3; }
+.sbox:hover .frame { stroke-width: 2.5; }
+.dot { fill: #d6d1ff; }
+.dot.t-pass { fill: var(--aqua); }
+.dot.t-reject { fill: #7b80a8; }
+.dot.t-warn { fill: var(--amber); }
+.dot.t-fail { fill: #ff8a8a; }
+.dot.t-decided { fill: var(--lav-edge); }
+.dot.held { fill: none; stroke: #d6d1ff; stroke-width: 1.6; }
 
 /* Scene labels use z-index 0-10 (drei Html); every overlay sits above them. */
 .top, .status, .panel, .object-nav { z-index: 20; }
@@ -184,6 +227,10 @@ button:disabled { opacity: 0.45; cursor: default; }
   .ledger { display: none; }
   .mobile-only { display: inline-block; }
   .desktop-only { display: none; }
+  .schematic.tall { display: block; overflow-y: auto; top: 200px; padding: 0 16px 320px; }
+  /* Keep a scrolled-to box clear of the panel at the bottom (tour, replay or inspector). */
+  .schematic.tall .sbox { scroll-margin: 16px 0 340px; }
+  .schematic.tall svg { display: block; height: auto; margin: 0 auto; max-width: 420px; }
   .replay { left: var(--gutter); right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px)); padding: 10px 12px; }
   .caption { font-size: 15px; }
   .clock { margin-left: 0; width: 100%; }

@@ -299,7 +299,7 @@ Each step is asked for separately. Later steps do not depend on earlier ones exc
 | 2 | Ingest Lambda, SSM parameters, schema changes (sections 6–7). **Done 2026-11-18**; see section 14. | No: twin-only resources, inert until a source sends | `enable_ingest` |
 | 3 | Wake log subscription (section 4). **Approved and done 2026-11-18**; see section 14. | **Yes**: attaches to a platform log group | `enable_wake_log_subscription` |
 | 4 | Exporter in the cluster (section 3), after testing on the dev cluster. **Approved 2026-11-18; built and tested, not deployed**: the owner applies it (`exporter/README.md`); see section 14. | **Yes**: runs on the control plane | Scale to 0 or delete the namespace |
-| 5 | Guided tour, 2D fallback. **Guided tour done 2026-11-18**; see section 14. 2D fallback not started. | No | — |
+| 5 | Guided tour, 2D fallback. **Guided tour done 2026-11-18; 2D fallback done 2026-11-19**; see section 14. | No | — |
 
 ## 11. Acceptance tests
 
@@ -437,6 +437,35 @@ Step 4 (exporter, `exporter/`):
   redaction scanner; each stop lands with its event applied and its object framed (the reject stop
   with the GPU still off); with motion, the lead-in pauses exactly at the stop; leaving for Live or
   another run ends the tour. Checked in the browser at desktop and 375 px width.
+
+### Step 5: 2D fallback
+
+- **View** (`web/src/ui/Schematic.tsx`): an SVG schematic drawn from the same `WorldState` the 3D desk
+  uses, so Live, Replay, the tour, the inspector, the ledger and the event log work unchanged. A header
+  button switches between 3D and 2D; the choice is remembered in the browser (`localStorage`, wrapped so
+  a private window just forgets it). Without WebGL the schematic is the only view and the button is
+  hidden. The old "can't show the 3D view" message and the forced event log are gone.
+- **Layout** (`web/src/ui/schematicLayout.ts`): five districts as on the desk: control plane and GPU
+  platforms at the back, queues across the middle, always-on pieces at the front left, the archive at
+  the front right. Below 640 px the districts stack in the order work flows (always on, queues, control
+  plane, GPU, archive) and scroll; the scroll area starts below the status line and a selected box
+  (for example a tour stop) is scrolled into view above the bottom panel.
+- **State** (`web/src/ui/status.ts`): each box shows the object's name and a short state ("Running",
+  "3 waiting", "Locked"). The colour comes from the same state and never stands alone. Inferred states
+  have a dashed outline and also say "inferred". Each box is a keyboard-reachable button whose
+  accessible name is the name, state and number of jobs.
+- **Tickets**: jobs are dots in the box of their location (the worker's tickets sit on platform
+  services), coloured by the same stamp as the 3D tickets; a hollow dot is held by the worker. The
+  placement rule, including unnamed tickets from polled queue depth, moved from `scene/movers.tsx` to
+  `model/tickets.ts` so both views draw exactly the same tickets.
+- **Not drawn in 2D**: the pulses travelling between objects and the cables. The event log carries the
+  same sequence as text.
+- **Tests** (6, `web/src/ui/schematic.test.ts`): both layouts place every object once, inside its
+  district, with no overlaps; every object has a non-empty state of at most 18 characters at every
+  event of every sample run; queue dots match the 3D rule and never count a job twice; inferred states
+  say so in text; a server-side render has one labelled, focusable button per object. Checked in the
+  browser at desktop and 375 px, in Replay and in the tour. The automatic switch without WebGL was not
+  exercised in a browser (it needs a browser with WebGL off).
 
 ## 15. Open questions for the owner
 

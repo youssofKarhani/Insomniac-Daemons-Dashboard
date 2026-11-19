@@ -2,26 +2,21 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { TwinEvent } from "../model/events";
-import { QUEUE_LOCATION, namedPerQueue, type JobView, type QueueName } from "../model/state";
+import type { JobView } from "../model/state";
+import { ticketsByLocation, ticketTone, type TicketTone } from "../model/tickets";
 import { useTwin } from "../store";
 import { C, RM, W, approach } from "./kit";
 import { ANCHOR, POS, stackOffset } from "./layout";
 
-const CRATE_VISIBLE = 6;
-const MAX_ANON = 6;
-
-function stampColor(j: JobView): string {
-  if (j.outcome === "dlq") return C.red;
-  if (j.outcome === "rejected") return C.grey;
-  if (j.outcome === "needs_review") return C.amber;
-  if (j.outcome === "decided") return C.lavEdge;
-  if (j.outcome === "completed") return C.aqua;
-  if (j.step === "retrying") return C.amber;
-  if (j.step === "verifying") return j.verifyPassed ? C.aqua : C.amber;
-  if (j.gate === "pass") return C.aqua;
-  if (j.gate === "reject") return C.grey;
-  return C.ticket;
-}
+const STAMP: Record<TicketTone, string> = {
+  plain: C.ticket,
+  pass: C.aqua,
+  reject: C.grey,
+  warn: C.amber,
+  fail: C.red,
+  decided: C.lavEdge,
+};
+const stampColor = (j: JobView) => STAMP[ticketTone(j)];
 
 function Ticket({ job, target }: { job: JobView; target: [number, number, number] }) {
   const g = useRef<THREE.Group>(null);
@@ -65,39 +60,9 @@ export function Tickets() {
   const jobs = useTwin((s) => s.world.jobs);
   const depth = useTwin((s) => s.world.queueDepth);
   const placed = useMemo(() => {
-    const byLoc = new Map<string, JobView[]>();
-    for (const j of Object.values(jobs)) {
-      const list = byLoc.get(j.location) ?? [];
-      list.push(j);
-      byLoc.set(j.location, list);
-    }
-    // Live telemetry reports how many messages wait, not which jobs: draw unnamed tickets
-    // only for depth beyond the named jobs that queue is still holding.
-    const named = namedPerQueue(jobs);
-    for (const [q, d] of Object.entries(depth) as [QueueName, { visible: number; inFlight: number }][]) {
-      const loc = QUEUE_LOCATION[q];
-      const list = byLoc.get(loc) ?? [];
-      const missing = Math.min(MAX_ANON, d.visible + d.inFlight - named[q]);
-      for (let i = 0; i < missing; i += 1) {
-        list.push({
-          id: `anon-${q}-${i}`,
-          jobType: "unknown",
-          location: loc,
-          step: "queued",
-          inFlight: i < d.inFlight,
-          attempts: 0,
-          receiveCount: 0,
-          enqueuedAt: 0,
-          seq: -100 + i,
-        });
-      }
-      byLoc.set(loc, list);
-    }
     const out: { job: JobView; target: [number, number, number] }[] = [];
-    for (const [loc, list] of byLoc) {
-      list.sort((a, b) => a.seq - b.seq);
-      const shown = loc === "crate" ? list.slice(-CRATE_VISIBLE) : list;
-      shown.forEach((job, n) => {
+    for (const list of ticketsByLocation(jobs, depth).values()) {
+      list.forEach((job, n) => {
         const a = ANCHOR[job.location];
         const o = stackOffset(job.location, n);
         out.push({ job, target: [a[0] + o[0], a[1] + o[1], a[2] + o[2]] });

@@ -18,6 +18,16 @@ import type { ObjectId } from "./content/components";
 import { TOUR, stopTime } from "./content/tour";
 
 export type Mode = "live" | "replay";
+export type View = "3d" | "2d";
+
+const VIEW_KEY = "sleepless-twin.view";
+function savedView(): View {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem(VIEW_KEY) === "2d" ? "2d" : "3d";
+  } catch {
+    return "3d";
+  }
+}
 
 /** What Replay is showing: a generated sample or a run recorded by the telemetry stack. */
 export type Source = { kind: "sample"; id: string } | { kind: "run"; id: string; start: number };
@@ -42,6 +52,8 @@ interface TwinStore {
   selected: ObjectId | null;
   labels: boolean;
   reducedMotion: boolean;
+  /** 3D desk or 2D schematic. Both draw the same world state. */
+  view: View;
 
   live: { status: LiveStatus; generatedAt?: number; run?: LiveDoc["run"]; exporterAt?: number; error?: string };
   recorded: RunSummary[];
@@ -61,6 +73,7 @@ interface TwinStore {
   tick: (dtMs: number) => void;
   select: (id: ObjectId | null) => void;
   setLabels: (on: boolean) => void;
+  setView: (v: View) => void;
   refreshLive: () => Promise<void>;
   refreshRuns: () => Promise<void>;
   refreshCosts: () => Promise<void>;
@@ -123,6 +136,7 @@ export const useTwin = create<TwinStore>((set, get) => ({
   // Labels crowd a phone screen; tapping an object still shows its name.
   labels: typeof window === "undefined" || window.innerWidth >= 760,
   reducedMotion: reducedMotionQuery?.matches ?? false,
+  view: savedView(),
 
   live: { status: DATA_URL ? "connecting" : "off" },
   recorded: [],
@@ -223,6 +237,14 @@ export const useTwin = create<TwinStore>((set, get) => ({
   },
   select: (selected) => set({ selected }),
   setLabels: (labels) => set({ labels }),
+  setView: (view) => {
+    set({ view });
+    try {
+      localStorage.setItem(VIEW_KEY, view);
+    } catch {
+      // Private windows may block storage; the choice then lasts for this visit only.
+    }
+  },
 
   refreshLive: async () => {
     if (!DATA_URL) return;
