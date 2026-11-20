@@ -1,5 +1,5 @@
 import { bool, num, str, type TwinEvent } from "./events";
-import type { CpState, GpuState, JobLocation, JobView, Market, Outcome, QueueName, VllmState, WorldState } from "./state";
+import { QUEUE_LOCATION, namedPerQueue, type CpState, type GpuState, type JobLocation, type JobView, type Market, type Outcome, type QueueName, type VllmState, type WorldState } from "./state";
 
 const GPU_BILLED: GpuState[] = ["launching", "running", "terminating"];
 
@@ -136,6 +136,7 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
       job.step = "done";
       job.outcome = outcome;
       job.finishedAt = e.ts;
+      if (job.archiveSlot === undefined) job.archiveSlot = s.archived++;
       s.jobs = { ...s.jobs, [job.id]: move(s, job, "crate", e.ts) };
       s.counters = { ...s.counters, [outcome]: s.counters[outcome] + 1 };
       if (job.attempts > 0) s.gpu = { ...s.gpu, lastWorkAt: e.ts };
@@ -214,7 +215,66 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
       break;
     }
   }
+  reconcileAnon(s, e.ts, e.kind === "queue.depth");
   return s;
+}
+
+/** At most this many unnamed tickets per queue are drawn. */
+export const MAX_ANON = 6;
+/** Unnamed tickets kept after they reach the archive (older ones are deep in its pile). */
+const MAX_ARCHIVED_ANON = 30;
+const QUEUES: QueueName[] = ["workflow", "gpu", "workflowDlq", "gpuDlq"];
+
+/**
+ * Keeps one unnamed ticket for each polled message no named job accounts for. Only a depth
+ * poll can add tickets; job events can only retire them, so a job finishing before the next
+ * poll never makes a phantom ticket appear.
+ */
+function reconcileAnon(s: WorldState, ts: number, allowGrow: boolean) {
+  const named = namedPerQueue(s.jobs);
+  let anon = s.anon;
+  const edit = () => {
+    if (anon === s.anon) anon = { ...s.anon };
+  };
+  for (const q of QUEUES) {
+    const loc = QUEUE_LOCATION[q];
+    const d = s.queueDepth[q];
+    const want = Math.max(0, Math.min(MAX_ANON, d.visible + d.inFlight - named[q]));
+    const active = Object.values(anon)
+      .filter((a) => a.queue === q && a.location === loc)
+      .sort((a, b) => a.seq - b.seq);
+    for (let i = active.length; allowGrow && i < want; i += 1) {
+      edit();
+      s.seq += 1;
+      s.anonSeq += 1;
+      const id = `anon-${q}-${s.anonSeq}`;
+      const t: JobView = { id, jobType: "unknown", location: loc, step: "queued", inFlight: false, attempts: 0, receiveCount: 0, enqueuedAt: ts, seq: s.seq, hops: [{ to: loc, at: ts }], queue: q };
+      anon[id] = t;
+      active.push(t);
+    }
+    // The oldest leave first, along the belts to the archive.
+    while (active.length > want) {
+      const a = active.shift()!;
+      edit();
+      s.seq += 1;
+      anon[a.id] = { ...a, location: "crate", step: "done", inFlight: false, finishedAt: ts, seq: s.seq, archiveSlot: s.archived++, hops: [...a.hops, { to: "crate", at: ts }] };
+    }
+    // The oldest messages are the ones a worker holds.
+    active.forEach((a, i) => {
+      const held = i < d.inFlight;
+      if (anon[a.id].inFlight !== held) {
+        edit();
+        anon[a.id] = { ...anon[a.id], inFlight: held };
+      }
+    });
+  }
+  const archived = Object.values(anon).filter((a) => a.location === "crate");
+  if (archived.length > MAX_ARCHIVED_ANON) {
+    edit();
+    archived.sort((a, b) => a.seq - b.seq);
+    for (const a of archived.slice(0, archived.length - MAX_ARCHIVED_ANON)) delete anon[a.id];
+  }
+  s.anon = anon;
 }
 
 export function reduceAll(events: readonly TwinEvent[], start: WorldState): WorldState {

@@ -209,10 +209,11 @@ export const BELT_EDGES = [
   b("crateFoot", "crateTop", "belt"),
   b("crateTop", "crateLip", "chute"),
   b("crateLip", "crate", "drop"),
-  b("workflow", "wfWest", "chute"),
-  b("wfWest", "workflowDlq", "chute"),
-  b("gpuQueue", "gqEast", "chute"),
-  b("gqEast", "gpuDlq", "chute"),
+  // Two-way: a message redriven out of a dead-letter queue slides back the way it came.
+  b("workflow", "wfWest", "chute", true),
+  b("wfWest", "workflowDlq", "chute", true),
+  b("gpuQueue", "gqEast", "chute", true),
+  b("gqEast", "gpuDlq", "chute", true),
 ] as const;
 
 export const BELTS = makeGraph<BeltNode>(BELT_NODES, BELT_EDGES);

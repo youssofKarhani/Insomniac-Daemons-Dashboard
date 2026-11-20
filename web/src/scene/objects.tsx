@@ -1,11 +1,11 @@
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { CONFIG, SAMPLE } from "../model/timings";
 import { useTwin } from "../store";
 import type { JobLocation, WorldState } from "../model/state";
 import { Block, Bolt, C, Lamp, Pickable, ProgressRing, RM, W, approach, clamp01, flash, type Num } from "./kit";
-import { PLATFORMS, POS, PLATFORM_Y } from "./layout";
+import { ARCHIVE_LAYER, PLATFORMS, POS, PLATFORM_Y, archiveSink } from "./layout";
 import { arrivedAt, restingAt } from "./ticketPath";
 import { CARRY_BOTTOM, CASSETTE_H, LUG_H, RAIL_Y, SEAT_BOTTOM, X_BAY, gantryAt, newGantryPose } from "./gantry";
 
@@ -322,12 +322,45 @@ function lastArchived(w: WorldState): number | undefined {
   return best;
 }
 
+/** The archive's opening in the desk: the inside of its walls. */
+export const PIT = { x: POS.s3[0], z: POS.s3[2], hx: 1.2, hz: 0.8, depth: 2 };
+
 export function Crate() {
+  const plate = useRef<THREE.Group>(null);
+  useFrame((_, dt) => {
+    if (!plate.current) return;
+    // The floor carries the whole pile: it sits one layer under the oldest result.
+    const target = -archiveSink(W().archived);
+    const { playing, mode } = useTwin.getState();
+    plate.current.position.y = playing || mode === "live" ? approach(plate.current.position.y, target, 6, dt) : target;
+    plate.current.visible = plate.current.position.y > -PIT.depth + 0.2;
+  });
   const p: Num = () => managed(flash(lastArchived(W()), W().t, 2500));
+  const liner = "#0b0f2a";
   return (
     <Pickable id="s3" position={POS.s3} labelY={2.1} footprint={[2.6, 1.8]}>
+      {/* Shaft under the opening: dark walls going down into the desk. */}
+      {[-1, 1].map((sx) => (
+        <mesh key={`x${sx}`} position={[sx * (PIT.hx - 0.005), -PIT.depth / 2, 0]}>
+          <boxGeometry args={[0.01, PIT.depth, PIT.hz * 2]} />
+          <meshBasicMaterial color={liner} />
+        </mesh>
+      ))}
+      {[-1, 1].map((sz) => (
+        <mesh key={`z${sz}`} position={[0, -PIT.depth / 2, sz * (PIT.hz - 0.005)]}>
+          <boxGeometry args={[PIT.hx * 2, PIT.depth, 0.01]} />
+          <meshBasicMaterial color={liner} />
+        </mesh>
+      ))}
+      <mesh position={[0, -PIT.depth, 0]}>
+        <boxGeometry args={[PIT.hx * 2, 0.01, PIT.hz * 2]} />
+        <meshBasicMaterial color={liner} />
+      </mesh>
+      {/* Sinking floor: its top is where the first layer of results rests. */}
+      <group ref={plate}>
+        <Block size={[PIT.hx * 2 - 0.02, ARCHIVE_LAYER, PIT.hz * 2 - 0.02]} position={[0, 0.14 - ARCHIVE_LAYER / 2, 0]} power={p} />
+      </group>
       <group>
-        <Block size={[2.6, 0.14, 1.8]} position={[0, 0.07, 0]} power={p} />
         <Block size={[2.6, 0.8, 0.1]} position={[0, 0.4, -0.85]} power={p} />
         <Block size={[2.6, 0.8, 0.1]} position={[0, 0.4, 0.85]} power={p} />
         <Block size={[0.1, 0.8, 1.8]} position={[-1.25, 0.4, 0]} power={p} />
@@ -821,14 +854,63 @@ export function Platforms() {
   );
 }
 
+const DESK = { w: 26, d: 17, t: 0.4 };
+
+/** Grid lines on the desk, split around the archive's opening. */
+function deskGrid(): Float32Array {
+  const pts: number[] = [];
+  const x0 = PIT.x - PIT.hx;
+  const x1 = PIT.x + PIT.hx;
+  const z0 = PIT.z - PIT.hz;
+  const z1 = PIT.z + PIT.hz;
+  const seg = (ax: number, az: number, bx: number, bz: number) => pts.push(ax, 0.005, az, bx, 0.005, bz);
+  for (let i = -13; i <= 13; i += 1) {
+    const x = i;
+    if (x > x0 && x < x1) {
+      seg(x, -DESK.d / 2, x, z0);
+      seg(x, z1, x, DESK.d / 2);
+    } else seg(x, -DESK.d / 2, x, DESK.d / 2);
+  }
+  for (let j = -13; j <= 13; j += 1) {
+    const z = (j * DESK.d) / 26;
+    if (z > z0 && z < z1) {
+      seg(-DESK.w / 2, z, x0, z);
+      seg(x1, z, DESK.w / 2, z);
+    } else seg(-DESK.w / 2, z, DESK.w / 2, z);
+  }
+  return new Float32Array(pts);
+}
+
 export function Desk() {
+  const geo = useMemo(() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(-DESK.w / 2, -DESK.d / 2);
+    shape.lineTo(DESK.w / 2, -DESK.d / 2);
+    shape.lineTo(DESK.w / 2, DESK.d / 2);
+    shape.lineTo(-DESK.w / 2, DESK.d / 2);
+    shape.closePath();
+    // Shape y is -z on the desk (the mesh is turned to lie flat).
+    const hole = new THREE.Path();
+    hole.moveTo(PIT.x - PIT.hx, -(PIT.z - PIT.hz));
+    hole.lineTo(PIT.x - PIT.hx, -(PIT.z + PIT.hz));
+    hole.lineTo(PIT.x + PIT.hx, -(PIT.z + PIT.hz));
+    hole.lineTo(PIT.x + PIT.hx, -(PIT.z - PIT.hz));
+    hole.closePath();
+    shape.holes.push(hole);
+    return new THREE.ExtrudeGeometry(shape, { depth: DESK.t, bevelEnabled: false });
+  }, []);
+  const grid = useMemo(deskGrid, []);
   return (
     <group>
-      <mesh position={[0, -0.2, 0]}>
-        <boxGeometry args={[26, 0.4, 17]} />
+      <mesh geometry={geo} rotation={[-Math.PI / 2, 0, 0]} position={[0, -DESK.t, 0]}>
         <meshLambertMaterial color={C.desk} />
       </mesh>
-      <gridHelper args={[26, 26, C.deskEdge, C.deskEdge]} position={[0, 0.005, 0]} scale={[1, 1, 17 / 26]} />
+      <lineSegments>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[grid, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color={C.deskEdge} />
+      </lineSegments>
     </group>
   );
 }

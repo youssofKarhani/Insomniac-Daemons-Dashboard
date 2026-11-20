@@ -6,7 +6,7 @@ import type { WorldState } from "../model/state";
 import { ticketsByLocation } from "../model/tickets";
 import { useTwin } from "../store";
 import { Block, C, Lamp, RM, W, approach, type Num } from "./kit";
-import { stackOffset } from "./layout";
+import { ticketOffset } from "./layout";
 import { BELTS, BELT_EDGES, CABLES, CABLE_EDGES, LIFT_EDGE, type CableLine, type P3 } from "./routes";
 import { newPose, poseAt, upOf, type Pose } from "./ticketPath";
 
@@ -61,10 +61,10 @@ function usePoses() {
   return (w: WorldState) => {
     const t = RM() ? Infinity : w.t;
     const seen = new Set<string>();
-    for (const [loc, list] of ticketsByLocation(w.jobs, w.queueDepth)) {
+    for (const [loc, list] of ticketsByLocation(w)) {
       list.forEach((job, n) => {
         if (job.hops.length === 0) return;
-        const o = stackOffset(loc, n);
+        const o = ticketOffset(loc, n, job, w.archived);
         off[0] = o[0];
         off[1] = o[1];
         off[2] = o[2];

@@ -20,7 +20,7 @@ export interface Status {
 /** An always-on piece shows as busy for this long after it fires. */
 const PULSE_MS = 3_000;
 
-export function statusOf(id: ObjectId, w: WorldState, tickets = ticketsByLocation(w.jobs, w.queueDepth)): Status {
+export function statusOf(id: ObjectId, w: WorldState, tickets = ticketsByLocation(w)): Status {
   const n = (loc: Parameters<typeof tickets.get>[0]) => tickets.get(loc)?.length ?? 0;
   const recent = (t?: number) => t !== undefined && w.t - t >= 0 && w.t - t < PULSE_MS;
   const towerUp = w.cp.state === "running";
@@ -100,7 +100,7 @@ export interface BoxView {
 export const MAX_DOTS = 6;
 
 export function boxViews(w: WorldState): Record<ObjectId, BoxView> {
-  const tickets = ticketsByLocation(w.jobs, w.queueDepth);
+  const tickets = ticketsByLocation(w);
   const at = new Map<ObjectId, JobView[]>();
   for (const [loc, list] of tickets) {
     const id = LOCATION_BOX[loc];

@@ -7,7 +7,7 @@ import { lastIndexAt } from "../model/replay";
 import { ticketsByLocation, ticketTone, type TicketTone } from "../model/tickets";
 import { useTwin } from "../store";
 import { C, RM, W, approach } from "./kit";
-import { stackOffset } from "./layout";
+import { ticketDrawn, ticketOffset } from "./layout";
 import { CABLE_EDGES, along, cableRoute, type CableNode, type Route } from "./routes";
 import { newPose, poseAt, restingAt } from "./ticketPath";
 import { ARM_PULSE_SPEED } from "./gantry";
@@ -81,14 +81,17 @@ function Ticket({ job, offset }: { job: JobView; offset: [number, number, number
 /** Job tickets, each riding the belts along its own hop history. */
 export function Tickets() {
   const jobs = useTwin((s) => s.world.jobs);
-  const depth = useTwin((s) => s.world.queueDepth);
+  const anon = useTwin((s) => s.world.anon);
+  const archived = useTwin((s) => s.world.archived);
   const placed = useMemo(() => {
     const out: { job: JobView; offset: [number, number, number] }[] = [];
-    for (const [loc, list] of ticketsByLocation(jobs, depth)) {
-      list.forEach((job, n) => out.push({ job, offset: stackOffset(loc, n) }));
+    for (const [loc, list] of ticketsByLocation({ jobs, anon })) {
+      list.forEach((job, n) => {
+        if (ticketDrawn(loc, job, archived)) out.push({ job, offset: ticketOffset(loc, n, job, archived) });
+      });
     }
     return out;
-  }, [jobs, depth]);
+  }, [jobs, anon, archived]);
   return (
     <group>
       {placed.map(({ job, offset }) => (

@@ -1,5 +1,5 @@
 import type { ObjectId } from "../content/components";
-import type { JobLocation } from "../model/state";
+import type { JobLocation, JobView } from "../model/state";
 import { BELTS, LOCATION_NODE } from "./routes";
 
 /**
@@ -53,9 +53,37 @@ export function stackOffset(loc: JobLocation, n: number): [number, number, numbe
     case "gpuQueue":
       // Head at the east end.
       return [-n * 0.82, 0, 0];
-    case "crate":
-      return [(n % 3) * 0.75, Math.floor(n / 3) * 0.12, 0];
     default:
       return [0, n * 0.12, 0];
   }
+}
+
+/**
+ * The archive is a deep bin set into the desk. Results pile up three to a layer; once the pile
+ * passes two layers its floor sinks one layer for each new one, so the newest results stay
+ * at the rim and older ones go down into the dark. Nothing is ever taken out.
+ */
+export const ARCHIVE_LAYER = 0.12;
+export function archiveSink(archived: number): number {
+  const top = Math.floor(Math.max(0, archived - 1) / 3);
+  return Math.max(0, top - 1) * ARCHIVE_LAYER;
+}
+/** Layers below this depth are out of sight under the rim and are not drawn. */
+const ARCHIVE_DRAWN_DEPTH = 0.75;
+export function archiveOffset(slot: number, archived: number): [number, number, number] {
+  return [(slot % 3) * 0.75, Math.floor(slot / 3) * ARCHIVE_LAYER - archiveSink(archived), 0];
+}
+export function archiveDrawn(slot: number, archived: number): boolean {
+  return archiveOffset(slot, archived)[1] > -ARCHIVE_DRAWN_DEPTH;
+}
+
+/** Where a ticket rests relative to its place's anchor. */
+export function ticketOffset(loc: JobLocation, n: number, job: JobView, archived: number): [number, number, number] {
+  if (loc === "crate" && job.archiveSlot !== undefined) return archiveOffset(job.archiveSlot, archived);
+  return stackOffset(loc, n);
+}
+
+/** False for tickets deep in the archive's pile, out of sight. */
+export function ticketDrawn(loc: JobLocation, job: JobView, archived: number): boolean {
+  return !(loc === "crate" && job.archiveSlot !== undefined) || archiveDrawn(job.archiveSlot, archived);
 }

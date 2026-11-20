@@ -84,6 +84,10 @@ export interface JobView {
   seq: number;
   /** Every move so far, oldest first. The scene replays them along the belts. */
   hops: Hop[];
+  /** Set on unnamed tickets: the queue whose polled depth they stand for. */
+  queue?: QueueName;
+  /** Its place in the archive's pile, numbered in arrival order and never reused. */
+  archiveSlot?: number;
 }
 
 export interface WorldState {
@@ -109,6 +113,14 @@ export interface WorldState {
   /** Last time each always-on piece flashed. */
   pulses: { gateway?: number; route?: string; lambda?: number; clock?: number; crate?: number };
   jobs: Record<string, JobView>;
+  /**
+   * Unnamed tickets for polled depth beyond the named jobs. They ride in from the front door
+   * when the depth rises and leave for the archive when it falls, like any other ticket.
+   */
+  anon: Record<string, JobView>;
+  anonSeq: number;
+  /** Tickets that have reached the archive so far (the next archive slot). */
+  archived: number;
   /** Polled queue counts. Live telemetry knows how many messages wait, not which jobs they are. */
   queueDepth: Record<QueueName, { visible: number; inFlight: number }>;
   counters: Record<Outcome, number>;
@@ -132,6 +144,9 @@ export function initialState(t = 0): WorldState {
     ssmOpen: false,
     pulses: {},
     jobs: {},
+    anon: {},
+    anonSeq: 0,
+    archived: 0,
     queueDepth: {
       workflow: { visible: 0, inFlight: 0 },
       gpu: { visible: 0, inFlight: 0 },

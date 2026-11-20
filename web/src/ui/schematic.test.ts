@@ -49,8 +49,8 @@ describe("2D schematic", () => {
     for (const e of buildScenario("warm-pair")) w = reduce(w, e);
     // Polled depth that only covers the named jobs adds no unnamed tickets.
     const named = namedPerQueue(w.jobs);
-    w = { ...w, queueDepth: { ...w.queueDepth, gpuDlq: { visible: named.gpuDlq + 2, inFlight: 0 } } };
-    const t = ticketsByLocation(w.jobs, w.queueDepth);
+    w = reduce(w, { id: "poll-dlq", ts: w.t + 1000, kind: "queue.depth", confidence: "observed", data: { queue: "gpuDlq", visible: named.gpuDlq + 2, inFlight: 0 } });
+    const t = ticketsByLocation(w);
     expect(t.get("gpuDlq")?.length).toBe(named.gpuDlq + 2);
     expect(statusOf("gpuDlq", w, t)).toEqual({ tone: "fail", text: `${named.gpuDlq + 2} dead letters` });
   });
