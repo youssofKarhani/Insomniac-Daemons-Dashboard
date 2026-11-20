@@ -255,8 +255,9 @@ export function Cables() {
         const a = CABLES.nodes[e.from];
         const b = CABLES.nodes[e.to];
         const vertical = Math.abs(a[0] - b[0]) + Math.abs(a[2] - b[2]) < 1e-6;
-        // Risers lie flat against the tower's east face.
-        const l = laid(a, b, vertical ? [1, 0, 0] : upOf(a, b), 0);
+        // Risers lie flat against the face they climb: a platform's front edge, or the tower's east face.
+        const onFront = Math.abs(a[2] + 1.19) < 0.02;
+        const l = laid(a, b, vertical ? (onFront ? [0, 0, 1] : [1, 0, 0]) : upOf(a, b), 0);
         return [{ i, line: e.line, ...l }];
       }),
     [],
