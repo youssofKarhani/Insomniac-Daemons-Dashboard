@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA_URL, LIVE_POLL_MS } from "../data/remote";
 import { World } from "../scene/World";
 import { useTwin } from "../store";
@@ -64,6 +64,25 @@ function useTelemetry() {
   }, []);
 }
 
+/**
+ * Publishes the height of the header and status line as --chrome-h on the app, so panels
+ * below them start under them however many rows they wrap to.
+ */
+function useChromeHeight() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    const app = el?.parentElement;
+    if (!el || !app || typeof ResizeObserver === "undefined") return;
+    const set = () => app.style.setProperty("--chrome-h", `${Math.ceil(el.getBoundingClientRect().bottom)}px`);
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    set();
+    return () => ro.disconnect();
+  }, []);
+  return ref;
+}
+
 function useKeyboard() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -109,6 +128,7 @@ export function App() {
   // Without WebGL the schematic is the only view.
   const view = webgl ? chosenView : "2d";
   const hasSelection = useTwin((s) => s.selected !== null);
+  const chromeRef = useChromeHeight();
   const startTour = useTwin((s) => s.startTour);
   const tourPanel = useTwin((s) => (s.tour !== null ? TOUR[s.tour].panel : undefined));
 
@@ -118,6 +138,7 @@ export function App() {
         {view === "3d" ? <World /> : <Schematic />}
       </div>
 
+      <div className="chrome" ref={chromeRef}>
       <header className="top">
         <div className="brand">
           <h1>Sleepless Twin</h1>
@@ -133,8 +154,8 @@ export function App() {
             </button>
           </div>
           <button className="ghost" aria-pressed={touring} onClick={startTour} disabled={touring}>
-            <span className="desktop-only">Guided tour</span>
-            <span className="mobile-only">Tour</span>
+            <span className="wide-only">Guided tour</span>
+            <span className="narrow-only">Tour</span>
           </button>
           {webgl && (
             <button
@@ -147,19 +168,20 @@ export function App() {
             </button>
           )}
           {view === "3d" && (
-            <button className="ghost" aria-pressed={labels} onClick={() => setLabels(!labels)}>
-              <span className="desktop-only">{labels ? "Hide labels" : "Show labels"}</span>
-              <span className="mobile-only">Labels</span>
+            <button className="ghost labels-toggle" aria-pressed={labels} onClick={() => setLabels(!labels)}>
+              <span className="wide-only">{labels ? "Hide labels" : "Show labels"}</span>
+              <span className="narrow-only">Labels</span>
             </button>
           )}
           <button className="ghost" aria-pressed={logOpen} onClick={() => setLogOpen(!logOpen)}>
-            <span className="desktop-only">Event log</span>
-            <span className="mobile-only">Log</span>
+            <span className="wide-only">Event log</span>
+            <span className="narrow-only">Log</span>
           </button>
         </div>
       </header>
 
       <StatusLine />
+      </div>
       <ObjectNav />
       <Inspector />
       <Ledger />

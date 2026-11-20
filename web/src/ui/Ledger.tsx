@@ -20,9 +20,8 @@ export function Ledger() {
   const focused = useTwin((s) => s.tour !== null && TOUR[s.tour].panel === "ledger");
   const v = useTwin(
     useShallow((s) => {
-      const w = s.world;
-      const rt = runtimeAt(w, w.t);
-      const span = Math.max(0, w.t - s.timeline.srcStart);
+      const rt = runtimeAt(s.world, s.now);
+      const span = Math.max(0, s.now - s.timeline.srcStart);
       return {
         gpuS: Math.round(rt.gpuMs / 1000),
         cpS: Math.round(rt.cpMs / 1000),

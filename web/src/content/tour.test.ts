@@ -63,7 +63,7 @@ describe("guided tour", () => {
     expect(s.play).toBe(until);
     const ts = stopTime(TOUR[6], s.timeline.events)!;
     expect(s.world.gpu.state).toBe("running");
-    expect(s.world.t).toBeGreaterThan(ts);
+    expect(s.now).toBeGreaterThan(ts);
     expect(TOUR_AFTER_MS).toBeGreaterThan(0);
   });
 

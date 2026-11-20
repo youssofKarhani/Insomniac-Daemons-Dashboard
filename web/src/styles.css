@@ -1,7 +1,8 @@
 /* Night desk palette from the owner's isometric renders. Single dark look by design. */
 :root {
   --bg: #161f45;
-  --panel: rgba(30, 40, 87, 0.86);
+  /* Nearly opaque instead of blurred: a backdrop blur over a canvas that redraws each frame is re-blurred each frame. */
+  --panel: rgba(30, 40, 87, 0.94);
   --panel-solid: #1e2857;
   --line: #3a4688;
   --fg: #e7e8fb;
@@ -27,7 +28,7 @@ button, select, input { font: inherit; color: inherit; }
 .app { position: relative; height: 100%; }
 .stage { position: absolute; inset: 0; }
 /* 2D schematic */
-.schematic { position: absolute; inset: 0; padding: 124px 24px 212px; display: flex; flex-direction: column; align-items: center; }
+.schematic { position: absolute; inset: 0; padding: calc(var(--chrome-h, 104px) + 20px) 24px 212px; display: flex; flex-direction: column; align-items: center; }
 .schematic svg { flex: 1; width: 100%; min-height: 0; max-width: 1180px; }
 /* On wide screens keep the schematic clear of the inspector while an object is selected. */
 @media (min-width: 1100px) { .has-selection .schematic.wide { padding-right: 380px; } }
@@ -78,8 +79,6 @@ button, select, input { font: inherit; color: inherit; }
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--aqua); }
 .muted { color: var(--muted); }
@@ -99,9 +98,10 @@ select { background: var(--panel-solid); max-width: 100%; }
 .seg button.on { background: var(--lav); color: #141a3d; font-weight: 600; }
 .seg.small button { padding: 3px 8px; font-family: var(--mono); font-size: 12px; }
 
-/* Header */
+/* Header and status line stack in one block; its height is published as --chrome-h. */
+.chrome { position: absolute; top: 0; left: 0; right: 0; display: flex; flex-direction: column; gap: 10px; pointer-events: none; z-index: 20; }
+.chrome > * { pointer-events: none; }
 .top {
-  position: absolute; top: 0; left: 0; right: 0;
   padding: max(14px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 0 var(--gutter);
   display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; pointer-events: none;
 }
@@ -113,7 +113,7 @@ select { background: var(--panel-solid); max-width: 100%; }
 
 /* Status */
 .status {
-  position: absolute; top: 74px; left: var(--gutter); right: 16px;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 var(--gutter);
   display: flex; gap: 10px; align-items: center; flex-wrap: wrap; pointer-events: none;
 }
 .status > * { pointer-events: auto; }
@@ -133,7 +133,7 @@ select { background: var(--panel-solid); max-width: 100%; }
 
 /* Inspector */
 .inspector {
-  position: absolute; top: 116px; right: max(16px, env(safe-area-inset-right, 0px)); width: 340px; max-height: calc(100% - 300px);
+  position: absolute; top: calc(var(--chrome-h, 104px) + 12px); right: max(16px, env(safe-area-inset-right, 0px)); width: 340px; max-height: calc(100% - var(--chrome-h, 104px) - 190px);
   overflow: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;
 }
 .insp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -148,7 +148,7 @@ details ul { margin: 8px 0; padding-left: 18px; display: flex; flex-direction: c
 .insp-nav .ghost { font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Object nav: visible only while it has keyboard focus */
-.object-nav { position: absolute; left: var(--gutter); top: 116px; padding: 10px 12px; background: var(--panel-solid); border: 1px solid var(--aqua); border-radius: 12px; z-index: 5; }
+.object-nav { position: absolute; left: var(--gutter); top: calc(var(--chrome-h, 104px) + 12px); padding: 10px 12px; background: var(--panel-solid); border: 1px solid var(--aqua); border-radius: 12px; z-index: 5; }
 .object-nav:not(:focus-within) { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); }
 .object-nav ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; }
 .object-nav button { background: none; border: 0; padding: 2px 4px; cursor: pointer; text-align: left; }
@@ -183,7 +183,9 @@ details ul { margin: 8px 0; padding-left: 18px; display: flex; flex-direction: c
 .track .tick.violet { background: var(--violet); }
 .track .tick.amber { background: var(--amber); }
 .track .tick.inferred { opacity: 0.45; }
-.track .head { position: absolute; top: -3px; bottom: -3px; width: 3px; margin-left: -1.5px; background: var(--fg); border-radius: 2px; pointer-events: none; }
+/* The track-wide wrapper moves with translateX (a percentage of the track), so the playhead never triggers layout. */
+.track .head-track { position: absolute; inset: -3px 0; pointer-events: none; }
+.track .head { position: absolute; top: 0; bottom: 0; left: 0; width: 3px; margin-left: -1.5px; background: var(--fg); border-radius: 2px; }
 .track input[type="range"] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .track:focus-within { outline: 2px solid var(--aqua); outline-offset: 2px; }
 .legend { margin: 0; }
@@ -209,7 +211,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .ledger.tour-focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(95, 211, 192, 0.35); }
 
 /* Event log */
-.log { position: absolute; left: var(--gutter); top: 116px; width: 340px; max-height: calc(100% - 330px); overflow: auto; padding: 12px 14px; }
+.log { position: absolute; left: var(--gutter); top: calc(var(--chrome-h, 104px) + 12px); width: 340px; max-height: calc(100% - var(--chrome-h, 104px) - 220px); overflow: auto; padding: 12px 14px; }
 .log ol { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .log li { display: grid; grid-template-columns: 64px 1fr; gap: 8px; font-size: 13px; }
 .log time { font-family: var(--mono); font-size: 11.5px; color: var(--muted); padding-top: 1px; }
@@ -218,16 +220,19 @@ button:disabled { opacity: 0.45; cursor: default; }
 .status-note.warn { color: var(--amber); }
 .chip.stale::before { background: var(--amber); }
 .mobile-only { display: none; }
+/* Header button labels: full from 1100 px, short below, so the header keeps to one row. */
+.narrow-only { display: none; }
+@media (max-width: 1099px) { .wide-only { display: none; } .narrow-only { display: inline; } }
+/* On a phone, labels crowd the desk and tapping an object names it, so the toggle goes. */
+@media (max-width: 479px) { .labels-toggle { display: none; } }
 .chip.rate { color: var(--aqua); }
 .chip.rate::before { display: none; }
 
 @media (max-width: 760px) {
   .brand p { display: none; }
-  .status { top: 110px; }
   .ledger { display: none; }
   .mobile-only { display: inline-block; }
-  .desktop-only { display: none; }
-  .schematic.tall { display: block; overflow-y: auto; top: 200px; padding: 0 16px 320px; }
+  .schematic.tall { display: block; overflow-y: auto; top: calc(var(--chrome-h, 190px) + 8px); padding: 0 16px 320px; }
   /* Keep a scrolled-to box clear of the panel at the bottom (tour, replay or inspector). */
   .schematic.tall .sbox { scroll-margin: 16px 0 340px; }
   .schematic.tall svg { display: block; height: auto; margin: 0 auto; max-width: 420px; }
@@ -235,14 +240,14 @@ button:disabled { opacity: 0.45; cursor: default; }
   .caption { font-size: 15px; }
   .clock { margin-left: 0; width: 100%; }
   .inspector { top: auto; bottom: max(12px, env(safe-area-inset-bottom, 0px)); left: var(--gutter); right: max(16px, env(safe-area-inset-right, 0px)); width: auto; max-height: 55%; z-index: 4; }
-  .log { left: var(--gutter); right: max(16px, env(safe-area-inset-right, 0px)); width: auto; top: 190px; max-height: 40%; z-index: 3; }
+  .log { left: var(--gutter); right: max(16px, env(safe-area-inset-right, 0px)); width: auto; top: calc(var(--chrome-h, 190px) + 12px); max-height: 40%; z-index: 3; }
   .legend { display: none; }
   .tour { left: var(--gutter); right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px)); padding: 12px 14px; }
   .tour h2 { font-size: 17px; }
   .tour p { font-size: 14px; }
   /* On a phone the tour caption stands in for the inspector, which would cover it. */
   .touring .inspector { display: none; }
-  .touring-ledger .ledger { display: flex; top: 220px; bottom: auto; right: max(16px, env(safe-area-inset-right, 0px)); width: auto; }
+  .touring-ledger .ledger { display: flex; top: calc(var(--chrome-h, 190px) + 12px); bottom: auto; right: max(16px, env(safe-area-inset-right, 0px)); width: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

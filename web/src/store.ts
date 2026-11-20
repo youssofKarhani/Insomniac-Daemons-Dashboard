@@ -13,7 +13,7 @@ import {
 } from "./data/remote";
 import type { TwinEvent } from "./model/events";
 import { ReplayCursor, buildTimeline, playToSrc, srcToPlay, type Timeline } from "./model/replay";
-import { initialState, type WorldState } from "./model/state";
+import { initialState, isStill, worldAt, type WorldState } from "./model/state";
 import type { ObjectId } from "./content/components";
 import { TOUR, stopTime } from "./content/tour";
 
@@ -46,7 +46,14 @@ interface TwinStore {
   play: number;
   playing: boolean;
   speed: number;
+  /**
+   * Reduced state. Replaced only when an event applies, so components that select from
+   * it re-render on events, not on every frame. Its `t` is the last event's time; the
+   * current time is `now` (use worldAt(world, now) where the clock matters).
+   */
   world: WorldState;
+  /** Source time of the playhead (Replay) or the wall clock (Live). Changes every frame. */
+  now: number;
   /** Events at or before the playhead (or now, in Live), newest last. */
   history: TwinEvent[];
   selected: ObjectId | null;
@@ -99,13 +106,13 @@ function prepare(events: TwinEvent[]) {
 
 function stateAtPlay(timeline: Timeline, cursor: ReplayCursor, play: number) {
   const src = playToSrc(timeline, play);
-  return { world: cursor.stateAt(src), history: cursor.eventsUpTo(src) };
+  return { world: cursor.baseAt(src), now: src, history: cursor.eventsUpTo(src) };
 }
 
 /** Live view at the current wall-clock time. */
 function stateAtNow(cursor: ReplayCursor) {
   const now = Date.now();
-  return { world: { ...cursor.stateAt(now), t: now }, history: cursor.eventsUpTo(now) };
+  return { world: cursor.baseAt(now), now, history: cursor.eventsUpTo(now) };
 }
 
 /** Keeps the previous history array when nothing new happened, so log and captions don't re-render every frame. */
@@ -131,10 +138,12 @@ export const useTwin = create<TwinStore>((set, get) => ({
   playing: false,
   speed: 1,
   world: DATA_URL ? initialState(Date.now()) : asleep.world,
+  now: DATA_URL ? Date.now() : asleep.now,
   history: DATA_URL ? [] : asleep.history,
   selected: null,
   // Labels crowd a phone screen; tapping an object still shows its name.
-  labels: typeof window === "undefined" || window.innerWidth >= 760,
+  // Labels need room: below 1280 px they collide on the desk. Hover or tap still shows a name.
+  labels: typeof window === "undefined" || window.innerWidth >= 1280,
   reducedMotion: reducedMotionQuery?.matches ?? false,
   view: savedView(),
 
@@ -197,8 +206,7 @@ export const useTwin = create<TwinStore>((set, get) => ({
     set({ play: p, ...stableHistory(stateAtPlay(timeline, cursor, p), get().history) });
   },
   step: (dir) => {
-    const { timeline, world } = get();
-    const now = world.t;
+    const { timeline, now } = get();
     const ev = timeline.events;
     const target = dir > 0 ? ev.find((e) => e.ts > now + 1) : [...ev].reverse().find((e) => e.ts < now - 1);
     if (!target) return;
@@ -212,7 +220,12 @@ export const useTwin = create<TwinStore>((set, get) => ({
     const { playing, play, speed, timeline, mode, live } = get();
     if (mode === "live") {
       if (!DATA_URL) return;
-      set(stableHistory(stateAtNow(liveFeed.cursor), get().history));
+      const next = stableHistory(stateAtNow(liveFeed.cursor), get().history);
+      // While everything sleeps nothing moves with time, so the clock only needs to tick once a
+      // second (for "Asleep for …"). The 3D view then stops rendering until something happens.
+      const prev = get();
+      const changed = next.world !== prev.world || next.history !== prev.history;
+      if (changed || !isStill(next.world, next.now) || next.now - prev.now >= 1_000) set(next);
       if (live.generatedAt !== undefined) {
         const stale = Date.now() - live.generatedAt > STALE_AFTER_MS;
         if (stale && live.status === "connected") set({ live: { ...live, status: "stale" } });
@@ -313,5 +326,8 @@ export const useTwin = create<TwinStore>((set, get) => ({
   },
   endTour: () => set({ tour: null, playUntil: null, playing: false, selected: null }),
 }));
+
+/** The world at the current time. Allocates only when the clock moved; prefer selecting fields. */
+export const currentWorld = (s: { world: WorldState; now: number }) => worldAt(s.world, s.now);
 
 reducedMotionQuery?.addEventListener?.("change", (e) => useTwin.setState({ reducedMotion: e.matches }));

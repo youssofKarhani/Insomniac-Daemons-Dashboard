@@ -3,6 +3,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { TwinEvent } from "../model/events";
 import type { JobView } from "../model/state";
+import { lastIndexAt } from "../model/replay";
 import { ticketsByLocation, ticketTone, type TicketTone } from "../model/tickets";
 import { useTwin } from "../store";
 import { C, RM, W, approach } from "./kit";
@@ -119,15 +120,24 @@ const TRAIL = 4;
 export function Signals() {
   const meshes = useRef<(THREE.Mesh | null)[]>([]);
   const tmp = useMemo(() => new THREE.Vector3(), []);
+  const to = useMemo(() => new THREE.Vector3(), []);
+  // Colours are parsed once, not every frame.
+  const colors = useMemo(() => new Map<string, THREE.Color>(), []);
+  const color = (hex: string) => {
+    let c = colors.get(hex);
+    if (!c) colors.set(hex, (c = new THREE.Color(hex)));
+    return c;
+  };
   useFrame(() => {
-    const { world, timeline, reducedMotion } = useTwin.getState();
+    const { timeline, reducedMotion } = useTwin.getState();
+    const world = W();
     let used = 0;
     if (!reducedMotion && !RM()) {
       const t = world.t;
       const ev = timeline.events;
-      for (let i = ev.length - 1; i >= 0 && used < POOL; i -= 1) {
+      // Start at the playhead: later events have not happened yet.
+      for (let i = lastIndexAt(ev, t); i >= 0 && used < POOL; i -= 1) {
         const e = ev[i];
-        if (e.ts > t) continue;
         if (t - e.ts > 2400) break;
         const path = pathFor(e);
         if (!path) continue;
@@ -137,11 +147,11 @@ export function Signals() {
           const fk = Math.max(0, f - k * 0.04);
           const m = meshes.current[used++];
           if (!m) continue;
-          tmp.set(...path.from).lerp(new THREE.Vector3(...path.to), fk);
+          tmp.set(...path.from).lerp(to.set(...path.to), fk);
           tmp.y += Math.sin(fk * Math.PI) * 1.2;
           m.position.copy(tmp);
           m.scale.setScalar(1 - k * 0.22);
-          (m.material as THREE.MeshBasicMaterial).color.set(path.color);
+          (m.material as THREE.MeshBasicMaterial).color.copy(color(path.color));
           m.visible = true;
         }
       }
@@ -152,11 +162,11 @@ export function Signals() {
           const f = ((t / 900 + k / 5) % 1 + 1) % 1;
           const m = meshes.current[used++];
           if (!m) continue;
-          tmp.set(...up(POS.gpuNode, 1.8)).lerp(new THREE.Vector3(...up(POS.controlPlane, 2.6)), f);
+          tmp.set(...up(POS.gpuNode, 1.8)).lerp(to.set(...up(POS.controlPlane, 2.6)), f);
           tmp.y += Math.sin(f * Math.PI) * 0.9;
           m.position.copy(tmp);
           m.scale.setScalar(0.6);
-          (m.material as THREE.MeshBasicMaterial).color.set(C.violet);
+          (m.material as THREE.MeshBasicMaterial).color.copy(color(C.violet));
           m.visible = true;
         }
       }

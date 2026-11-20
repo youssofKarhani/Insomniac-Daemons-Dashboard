@@ -1,7 +1,7 @@
 import { useShallow } from "zustand/react/shallow";
 import { STALE_AFTER_MS } from "../data/remote";
 import { SCENARIOS } from "../data/scenarios";
-import { useTwin, sourceKey } from "../store";
+import { currentWorld, useTwin, sourceKey } from "../store";
 import { useRates } from "./rates";
 import { dateUtc, duration } from "./format";
 
@@ -18,7 +18,7 @@ export function StatusLine() {
   const loadSource = useTwin((s) => s.loadSource);
   const status = useTwin(
     useShallow((s) => {
-      const w = s.world;
+      const w = currentWorld(s);
       const active = Object.values(w.jobs).filter((j) => j.step !== "done").length;
       const queued = Object.values(w.queueDepth).reduce((n, q) => n + q.visible + q.inFlight, 0) - w.queueDepth.workflowDlq.visible - w.queueDepth.gpuDlq.visible;
       const work = Math.max(active, queued);
@@ -39,7 +39,7 @@ export function StatusLine() {
   const rate = useRates().nowPerHour;
   const scenario = SCENARIOS.find((s) => s.id === source.id);
   // Re-render once a second for the "updated … ago" text.
-  useTwin((s) => (s.mode === "live" ? Math.floor(s.world.t / 1000) : 0));
+  useTwin((s) => (s.mode === "live" ? Math.floor(s.now / 1000) : 0));
 
   let note: React.ReactNode;
   if (mode === "replay") {

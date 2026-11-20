@@ -4,14 +4,43 @@
     {
       "name": "twin-web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["-C", "C:/Users/USER/Desktop/My_Projects/AWS-dashboard/web", "dev", "--port", "5173", "--strictPort"],
+      "runtimeArgs": [
+        "-C",
+        "C:/Users/USER/Desktop/My_Projects/AWS-dashboard/web",
+        "dev",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
       "port": 5173
     },
     {
       "name": "twin-web-fixture",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["-C", "C:/Users/USER/Desktop/My_Projects/AWS-dashboard/web", "dev", "--mode", "fixture", "--port", "5174", "--strictPort"],
+      "runtimeArgs": [
+        "-C",
+        "C:/Users/USER/Desktop/My_Projects/AWS-dashboard/web",
+        "dev",
+        "--mode",
+        "fixture",
+        "--port",
+        "5174",
+        "--strictPort"
+      ],
       "port": 5174
+    },
+    {
+      "name": "twin-web-build",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "-C",
+        "C:/Users/USER/Desktop/My_Projects/AWS-dashboard/web",
+        "preview",
+        "--port",
+        "4173",
+        "--strictPort"
+      ],
+      "port": 4173
     }
   ]
 }

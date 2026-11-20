@@ -137,6 +137,26 @@ export function initialState(t = 0): WorldState {
   };
 }
 
+/** The world as seen at time `now`: the reduced state with its clock moved forward. */
+export function worldAt(w: WorldState, now: number): WorldState {
+  return w.t === now ? w : { ...w, t: now };
+}
+
+/** Pulses and travelling signals finish within this long after their event. */
+export const MOTION_AFTER_EVENT_MS = 5_000;
+
+/**
+ * True when nothing in the scene moves with time: everything is off and the last event and
+ * pulse are long enough ago that their animations have finished. Live then needs to advance
+ * its clock only for the text that counts time ("Asleep for 2 h").
+ */
+export function isStill(w: WorldState, now: number): boolean {
+  if (w.cp.state !== "stopped" || w.gpu.state !== "none" || w.vllm.state !== "absent") return false;
+  const recent = (t?: number) => t !== undefined && now - t < MOTION_AFTER_EVENT_MS;
+  const p = w.pulses;
+  return !recent(w.lastEventTs) && !recent(p.clock) && !recent(p.gateway) && !recent(p.lambda) && !recent(p.crate);
+}
+
 /** Running time including the open interval up to `t`. */
 export function runtimeAt(s: WorldState, t: number): { gpuMs: number; cpMs: number } {
   const gpuOpen = s.gpu.state === "running" || s.gpu.state === "terminating" || s.gpu.state === "launching";

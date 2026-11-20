@@ -3,6 +3,7 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import { OBJECTS, type ObjectId } from "../content/components";
+import { worldAt, type WorldState } from "../model/state";
 import { useTwin } from "../store";
 
 /** Palette taken from the owner's isometric renders. */
@@ -29,7 +30,13 @@ export type Num = () => number;
 export const one: Num = () => 1;
 
 /** Shortcuts for reading the shared world state inside useFrame without re-rendering. */
-export const W = () => useTwin.getState().world;
+let wCache: { base: WorldState | null; now: number; w: WorldState | null } = { base: null, now: NaN, w: null };
+/** The world at the current time, for per-frame reads. Rebuilt at most once per frame. */
+export const W = (): WorldState => {
+  const s = useTwin.getState();
+  if (wCache.base !== s.world || wCache.now !== s.now) wCache = { base: s.world, now: s.now, w: worldAt(s.world, s.now) };
+  return wCache.w!;
+};
 export const RM = () => useTwin.getState().reducedMotion;
 
 /** 1 at `ts`, fading to 0 over `dur` ms of source time. */
@@ -45,8 +52,23 @@ export function clamp01(v: number) {
 /** Frame-rate independent exponential approach. Instant in reduced-motion mode. */
 export function approach(current: number, target: number, lambda: number, dt: number) {
   if (RM()) return target;
-  return current + (target - current) * (1 - Math.exp(-lambda * dt));
+  // On demand rendering, the first frame after an idle spell reports the whole gap as dt;
+  // cap it so motion eases from where it was instead of snapping.
+  const step = Math.min(dt, 0.05);
+  return current + (target - current) * (1 - Math.exp(-lambda * step));
 }
+
+/**
+ * On-demand rendering: the canvas draws while `until` is in the future. DemandDriver (World.tsx)
+ * registers the canvas's invalidate; anything that starts a local animation calls wake().
+ */
+export const demand = { until: 0, invalidate: () => {} };
+export function wake(ms: number) {
+  demand.until = Math.max(demand.until, performance.now() + ms);
+  demand.invalidate();
+}
+/** The hover ring eases at rate 12/s; it is settled within this long. */
+const HOVER_SETTLE_MS = 600;
 
 /** A number that eases toward `target()` every frame. */
 export function useEased(target: Num, lambda = 6) {
@@ -204,16 +226,18 @@ export function Pickable({
   const labels = useTwin((s) => s.labels);
   const select = useTwin((s) => s.select);
   const ring = useRef<THREE.MeshBasicMaterial>(null);
-  useFrame(() => {
-    if (ring.current) ring.current.opacity = approach(ring.current.opacity, selected ? 0.9 : hover ? 0.45 : 0, 12, 0.016);
+  useFrame((_, dt) => {
+    if (ring.current) ring.current.opacity = approach(ring.current.opacity, selected ? 0.9 : hover ? 0.45 : 0, 12, dt);
   });
   const onOver = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     setHover(true);
+    wake(HOVER_SETTLE_MS);
     document.body.style.cursor = "pointer";
   };
   const onOut = () => {
     setHover(false);
+    wake(HOVER_SETTLE_MS);
     document.body.style.cursor = "";
   };
   const onClick = (e: ThreeEvent<MouseEvent>) => {

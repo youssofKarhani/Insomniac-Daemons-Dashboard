@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { caption } from "../content/captions";
 import { SCENARIOS } from "../data/scenarios";
 import type { EventKind } from "../model/events";
@@ -22,17 +22,75 @@ function tone(kind: EventKind): string {
   return "lav";
 }
 
+/**
+ * Playhead, scrubber and clock change every frame, so they write to the DOM directly from a
+ * store subscription instead of re-rendering the bar. The playhead moves with a transform.
+ */
+function useFrameWriter(write: (s: ReturnType<typeof useTwin.getState>) => void) {
+  const fn = useRef(write);
+  fn.current = write;
+  useEffect(() => {
+    fn.current(useTwin.getState());
+    return useTwin.subscribe((s) => fn.current(s));
+  }, []);
+}
+
+function ClockText() {
+  const el = useRef<HTMLSpanElement>(null);
+  const last = useRef("");
+  useFrameWriter((s) => {
+    const text = `${dateUtc(s.now)} · ${clockUtc(s.now)} UTC`;
+    if (el.current && text !== last.current) {
+      el.current.textContent = text;
+      last.current = text;
+    }
+  });
+  return <span className="clock" title="Source time (UTC)" ref={el} />;
+}
+
+function Scrubber({ total }: { total: number }) {
+  const head = useRef<HTMLSpanElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const { setPlaying, seek } = useTwin.getState();
+  useFrameWriter((s) => {
+    const pct = Math.max(0, Math.min(100, (s.play / (s.timeline.playDuration || 1)) * 100));
+    if (head.current) head.current.style.transform = `translateX(${pct}%)`;
+    if (input.current && document.activeElement !== input.current) input.current.value = String(s.play);
+  });
+  return (
+    <>
+      <span className="head-track" ref={head} aria-hidden="true">
+        <span className="head" />
+      </span>
+      <label className="visually-hidden" htmlFor="scrub">
+        Playhead
+      </label>
+      <input
+        id="scrub"
+        ref={input}
+        type="range"
+        min={0}
+        max={total}
+        step={10}
+        defaultValue={0}
+        onChange={(e) => {
+          setPlaying(false);
+          seek(Number(e.target.value));
+        }}
+      />
+    </>
+  );
+}
+
 export function ReplayBar() {
   const timeline = useTwin((s) => s.timeline);
-  const play = useTwin((s) => s.play);
   const playing = useTwin((s) => s.playing);
   const speed = useTwin((s) => s.speed);
   const source = useTwin((s) => s.source);
   const recorded = useTwin((s) => s.recorded);
   const loading = useTwin((s) => s.loading);
-  const now = useTwin((s) => s.world.t);
   const last = useTwin((s) => s.history[s.history.length - 1]);
-  const { setPlaying, setSpeed, seek, step, loadSource } = useTwin.getState();
+  const { setPlaying, setSpeed, step, loadSource } = useTwin.getState();
 
   const total = timeline.playDuration || 1;
   const ticks = useMemo(
@@ -90,9 +148,7 @@ export function ReplayBar() {
             </button>
           ))}
         </div>
-        <span className="clock" title="Source time (UTC)">
-          {dateUtc(now)} · {clockUtc(now)} UTC
-        </span>
+        <ClockText />
       </div>
       <div className="track">
         {breaks.map((b, i) => (
@@ -101,22 +157,7 @@ export function ReplayBar() {
         {ticks.map((t) => (
           <span key={t.id} className={`tick ${t.tone}${t.inferred ? " inferred" : ""}`} style={{ left: `${t.left}%` }} />
         ))}
-        <span className="head" style={{ left: `${(play / total) * 100}%` }} />
-        <label className="visually-hidden" htmlFor="scrub">
-          Playhead
-        </label>
-        <input
-          id="scrub"
-          type="range"
-          min={0}
-          max={total}
-          step={10}
-          value={play}
-          onChange={(e) => {
-            setPlaying(false);
-            seek(Number(e.target.value));
-          }}
-        />
+        <Scrubber total={total} />
       </div>
       <p className="legend muted small">
         Hatched stretches are long waits shown faster than real time. Pale markers are inferred, not observed.

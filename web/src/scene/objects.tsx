@@ -49,7 +49,7 @@ export function Clock() {
   });
   const p: Num = () => managed(flash(W().pulses.clock, W().t, 2500));
   return (
-    <Pickable id="clock" position={POS.clock} labelY={2.4} footprint={[1.4, 1.2]}>
+    <Pickable id="clock" position={POS.clock} labelAt={[-0.2, 0, 1.3]} footprint={[1.4, 1.2]}>
       <Block size={[1.4, 0.35, 1.2]} position={[0, 0.175, 0]} power={p} />
       <Block size={[0.25, 0.7, 0.25]} position={[0, 0.7, 0]} power={p} />
       <mesh position={[0, 1.55, 0]} rotation={[Math.PI / 2, 0, 0]}>

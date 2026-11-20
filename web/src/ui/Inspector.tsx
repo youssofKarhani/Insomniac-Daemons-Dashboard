@@ -1,12 +1,12 @@
 import { OBJECT_IDS, OBJECTS } from "../content/components";
-import { useTwin } from "../store";
+import { currentWorld, useTwin } from "../store";
 import { describe } from "./describe";
 
 export function Inspector() {
   const selected = useTwin((s) => s.selected);
   const select = useTwin((s) => s.select);
   const mode = useTwin((s) => s.mode);
-  const line = useTwin((s) => (s.selected ? describe(s.selected, s.world) : ""));
+  const line = useTwin((s) => (s.selected ? describe(s.selected, currentWorld(s)) : ""));
   if (!selected) return null;
   const info = OBJECTS[selected];
   const i = OBJECT_IDS.indexOf(selected);

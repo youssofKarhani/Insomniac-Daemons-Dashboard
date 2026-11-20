@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { OBJECTS, type ObjectId } from "../content/components";
-import type { JobView } from "../model/state";
-import { ticketsByLocation, ticketTone } from "../model/tickets";
-import { useTwin } from "../store";
-import { LOCATION_BOX, layout } from "./schematicLayout";
-import { statusOf } from "./status";
+import { useShallow } from "zustand/react/shallow";
+import { OBJECT_IDS, OBJECTS, type ObjectId } from "../content/components";
+import { currentWorld, useTwin } from "../store";
+import { layout } from "./schematicLayout";
+import { MAX_DOTS, boxKey, boxViews } from "./status";
 
 /** Narrower than this, the districts stack in the order work flows. */
 export const TALL_BELOW_PX = 640;
-const MAX_DOTS = 6;
 
 function useTall() {
   const [tall, setTall] = useState(() => typeof window !== "undefined" && window.innerWidth < TALL_BELOW_PX);
@@ -20,26 +18,6 @@ function useTall() {
   return tall;
 }
 
-/** In the tall layout the boxes scroll, so the scroll area starts below the header and status line. */
-function useTopClearance(on: boolean) {
-  const [top, setTop] = useState<number | undefined>(undefined);
-  useEffect(() => {
-    if (!on || typeof ResizeObserver === "undefined") return;
-    const status = document.querySelector(".status");
-    if (!status) return;
-    const measure = () => setTop(Math.ceil(status.getBoundingClientRect().bottom) + 8);
-    const ro = new ResizeObserver(measure);
-    ro.observe(status);
-    window.addEventListener("resize", measure);
-    measure();
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, [on]);
-  return on ? top : undefined;
-}
-
 /**
  * 2D schematic: the same world state as the 3D desk, drawn as labelled boxes.
  * Used automatically without WebGL, and offered as a toggle. State is shown as
@@ -49,22 +27,20 @@ export function Schematic({ tall: forceTall }: { tall?: boolean }) {
   const autoTall = useTall();
   const tall = forceTall ?? autoTall;
   const L = useMemo(() => layout(tall ? "tall" : "wide"), [tall]);
-  const world = useTwin((s) => s.world);
+  // Select one short key per box: the schematic re-renders when a box's drawing
+  // changes, not on every frame of playback.
+  const keys = useTwin(
+    useShallow((s) => {
+      const v = boxViews(currentWorld(s));
+      return OBJECT_IDS.map((id) => boxKey(v[id]));
+    }),
+  );
   const selected = useTwin((s) => s.selected);
   const reducedMotion = useTwin((s) => s.reducedMotion);
   const select = useTwin((s) => s.select);
-  const tickets = useMemo(() => ticketsByLocation(world.jobs, world.queueDepth), [world.jobs, world.queueDepth]);
+  // Rebuilt from the current state whenever a key changed (the keys came from that same state).
+  const views = useMemo(() => boxViews(currentWorld(useTwin.getState())), [keys]);
   const scroller = useRef<HTMLDivElement>(null);
-  const top = useTopClearance(tall);
-
-  const dotsAt = useMemo(() => {
-    const m = new Map<ObjectId, JobView[]>();
-    for (const [loc, list] of tickets) {
-      const id = LOCATION_BOX[loc];
-      m.set(id, [...(m.get(id) ?? []), ...list]);
-    }
-    return m;
-  }, [tickets]);
 
   // On a phone the selected box (for example a tour stop) may be off screen.
   useEffect(() => {
@@ -75,7 +51,7 @@ export function Schematic({ tall: forceTall }: { tall?: boolean }) {
   }, [tall, selected, reducedMotion]);
 
   return (
-    <div className={`schematic ${tall ? "tall" : "wide"}`} ref={scroller} style={top !== undefined ? { top } : undefined} onClick={() => select(null)}>
+    <div className={`schematic ${tall ? "tall" : "wide"}`} ref={scroller} onClick={() => select(null)}>
       <svg
         viewBox={`-4 -4 ${L.width + 8} ${L.height + 8}`}
         preserveAspectRatio="xMidYMid meet"
@@ -92,11 +68,9 @@ export function Schematic({ tall: forceTall }: { tall?: boolean }) {
         ))}
         {(Object.keys(L.boxes) as ObjectId[]).map((id) => {
           const b = L.boxes[id];
-          const st = statusOf(id, world, tickets);
-          const dots = dotsAt.get(id) ?? [];
-          const shown = dots.slice(-MAX_DOTS);
+          const { status: st, dots: shown, total } = views[id];
           const name = OBJECTS[id].name;
-          const label = `${name}: ${st.text}${st.inferred ? ", inferred" : ""}${dots.length ? `, ${dots.length} job${dots.length === 1 ? "" : "s"} here` : ""}`;
+          const label = `${name}: ${st.text}${st.inferred ? ", inferred" : ""}${total ? `, ${total} job${total === 1 ? "" : "s"} here` : ""}`;
           const activate = () => select(id);
           return (
             <g
@@ -129,11 +103,11 @@ export function Schematic({ tall: forceTall }: { tall?: boolean }) {
                 {st.text}
               </text>
               {shown.map((j, i) => (
-                <circle key={j.id} className={`dot t-${ticketTone(j)}${j.inFlight ? " held" : ""}`} cx={18 + i * 12} cy={54} r={4.2} />
+                <circle key={j.id} className={`dot t-${j.tone}${j.held ? " held" : ""}`} cx={18 + i * 12} cy={54} r={4.2} />
               ))}
-              {dots.length > MAX_DOTS && (
+              {total > MAX_DOTS && (
                 <text className="more" x={18 + MAX_DOTS * 12} y={58}>
-                  +{dots.length - MAX_DOTS}
+                  +{total - MAX_DOTS}
                 </text>
               )}
               {st.inferred && (

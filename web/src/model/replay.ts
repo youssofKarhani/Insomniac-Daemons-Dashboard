@@ -82,6 +82,21 @@ export function srcToPlay(tl: Timeline, src: number): number {
   return s.playStart + f * (s.playEnd - s.playStart);
 }
 
+/** Index of the last event with ts <= t in a sorted list, or -1. */
+export function lastIndexAt(events: readonly TwinEvent[], t: number): number {
+  let lo = 0;
+  let hi = events.length - 1;
+  let ans = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (events[mid].ts <= t) {
+      ans = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return ans;
+}
+
 /**
  * Computes world state at any source time. Moving forward applies only new
  * events; moving backward restarts from the nearest snapshot.
@@ -102,21 +117,18 @@ export class ReplayCursor {
 
   /** Index of the last event with ts <= src, or -1. */
   private lastIndexAt(src: number): number {
-    const ev = this.tl.events;
-    let lo = 0;
-    let hi = ev.length - 1;
-    let ans = -1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (ev[mid].ts <= src) {
-        ans = mid;
-        lo = mid + 1;
-      } else hi = mid - 1;
-    }
-    return ans;
+    return lastIndexAt(this.tl.events, src);
   }
 
   stateAt(src: number): WorldState {
+    return { ...this.baseAt(src), t: src };
+  }
+
+  /**
+   * Reduced state at `src` with its own `t` (the last applied event). The same object
+   * is returned until another event applies, so subscribers can skip re-rendering.
+   */
+  baseAt(src: number): WorldState {
     const target = this.lastIndexAt(src);
     if (target < this.index) {
       const snap = [...this.snapshots].reverse().find((sn) => sn.index <= target);
@@ -127,7 +139,7 @@ export class ReplayCursor {
     for (let i = this.index + 1; i <= target; i += 1) s = reduce(s, this.tl.events[i]);
     this.state = s;
     this.index = target;
-    return { ...s, t: src };
+    return s;
   }
 
   /** Events that happened at or before `src`, newest last. */

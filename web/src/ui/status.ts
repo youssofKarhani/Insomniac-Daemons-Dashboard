@@ -1,6 +1,7 @@
-import type { ObjectId } from "../content/components";
-import type { WorldState } from "../model/state";
-import { ticketsByLocation } from "../model/tickets";
+import { OBJECT_IDS, type ObjectId } from "../content/components";
+import type { JobView, WorldState } from "../model/state";
+import { ticketsByLocation, ticketTone, type TicketTone } from "../model/tickets";
+import { LOCATION_BOX } from "./schematicLayout";
 import { CONFIG } from "../model/timings";
 import { duration } from "./format";
 
@@ -85,4 +86,40 @@ export function statusOf(id: ObjectId, w: WorldState, tickets = ticketsByLocatio
       return { tone: "off", text: "Off" };
     }
   }
+}
+
+/** Everything one schematic box draws. */
+export interface BoxView {
+  status: Status;
+  /** Newest tickets at this box, at most MAX_DOTS. */
+  dots: { id: string; tone: TicketTone; held: boolean }[];
+  /** All tickets at this box, including those not drawn. */
+  total: number;
+}
+
+export const MAX_DOTS = 6;
+
+export function boxViews(w: WorldState): Record<ObjectId, BoxView> {
+  const tickets = ticketsByLocation(w.jobs, w.queueDepth);
+  const at = new Map<ObjectId, JobView[]>();
+  for (const [loc, list] of tickets) {
+    const id = LOCATION_BOX[loc];
+    at.set(id, [...(at.get(id) ?? []), ...list]);
+  }
+  const out = {} as Record<ObjectId, BoxView>;
+  for (const id of OBJECT_IDS) {
+    const all = at.get(id) ?? [];
+    out[id] = {
+      status: statusOf(id, w, tickets),
+      dots: all.slice(-MAX_DOTS).map((j) => ({ id: j.id, tone: ticketTone(j), held: j.inFlight })),
+      total: all.length,
+    };
+  }
+  return out;
+}
+
+/** A string that changes exactly when the box's drawing changes, for cheap equality checks. */
+export function boxKey(v: BoxView): string {
+  const s = v.status;
+  return `${s.tone}|${s.text}|${s.inferred ? 1 : 0}|${v.total}|${v.dots.map((d) => `${d.id}:${d.tone}:${d.held ? 1 : 0}`).join(",")}`;
 }

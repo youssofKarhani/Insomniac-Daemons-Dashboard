@@ -10,7 +10,7 @@ interface OrbitControlsImpl {
   update: () => void;
 }
 import { useTwin } from "../store";
-import { C, W, approach } from "./kit";
+import { C, W, approach, demand, wake } from "./kit";
 import { DESK_ROTATION, POS } from "./layout";
 import { Tickets, Signals } from "./movers";
 import {
@@ -118,11 +118,38 @@ function CameraRig() {
   return null;
 }
 
+/** The slowest easing in the scene (rate 1.2/s) is within 1% of its target after this long. */
+const SETTLE_MS = 4_000;
+/**
+ * The canvas renders on demand. Any store change (a new event, the playhead moving, a
+ * selection) requests frames for SETTLE_MS so everything can ease to its new target. Hover
+ * wakes it from Pickable; orbiting and zooming request their own frames through the camera
+ * controls. A sleeping platform with nothing changing draws nothing, instead of redrawing the
+ * same picture 60 times a second, and moving the mouse over it costs nothing either.
+ */
+function DemandDriver() {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    demand.invalidate = invalidate;
+    const unsub = useTwin.subscribe(() => wake(SETTLE_MS));
+    wake(SETTLE_MS);
+    return () => {
+      unsub();
+      demand.invalidate = () => {};
+    };
+  }, [invalidate]);
+  useFrame(() => {
+    if (performance.now() < demand.until) invalidate();
+  });
+  return null;
+}
+
 export function World() {
   const select = useTwin((s) => s.select);
   return (
     <Canvas
       dpr={[1, 2]}
+      frameloop="demand"
       gl={{ antialias: true, powerPreference: "high-performance" }}
       onPointerMissed={() => select(null)}
       aria-hidden="true"
@@ -139,6 +166,7 @@ export function World() {
         maxAzimuthAngle={Math.PI / 4 + 0.5}
         screenSpacePanning
       />
+      <DemandDriver />
       <CameraRig />
       <Lights />
       <group rotation={[0, DESK_ROTATION, 0]}>
