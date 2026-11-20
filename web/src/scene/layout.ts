@@ -26,7 +26,7 @@ export const POS: Record<ObjectId, [number, number, number]> = {
   pods: [-6.4, PLATFORM_Y + 3, -4.6],
   watchdog: [-8.6, PLATFORM_Y, -2.6],
   laya: [-2.3, PLATFORM_Y, -3.4],
-  autoscaler: [0, PLATFORM_Y + 3.9, -6.3],
+  autoscaler: [3.0, 4.6, -4.6],
   gpuNode: [6.6, PLATFORM_Y, -4.6],
   guard: [6.6, PLATFORM_Y, -3.4],
   modelVolume: [9.4, PLATFORM_Y, -4.4],
@@ -35,7 +35,8 @@ export const POS: Record<ObjectId, [number, number, number]> = {
 
 export const PLATFORMS = {
   a: { center: [-5, 0, -4.4] as [number, number, number], size: [10, PLATFORM_Y, 6.4] as [number, number, number], zone: "eu-north-1a" },
-  c: { center: [7.4, 0, -4.4] as [number, number, number], size: [8, PLATFORM_Y, 6.4] as [number, number, number], zone: "eu-north-1c" },
+  // Zone C runs to the desk edge to hold the capacity bay at its far end.
+  c: { center: [8.15, 0, -4.4] as [number, number, number], size: [9.5, PLATFORM_Y, 6.4] as [number, number, number], zone: "eu-north-1c" },
 };
 
 /** Where tickets rest for each job location: their node on the belts (routes.ts). */

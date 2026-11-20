@@ -66,6 +66,7 @@ describe("cables", () => {
       ["tower", "lambda", "guard"],
       ["ssmBack", "tower"],
       ["gpu", "litellm"],
+      ["tower", "armBay"],
     ] as const;
     for (const s of stops) {
       const r = cableRoute(s);

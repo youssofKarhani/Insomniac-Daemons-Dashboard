@@ -7,6 +7,7 @@ import type { JobLocation, WorldState } from "../model/state";
 import { Block, C, Lamp, Pickable, ProgressRing, RM, W, approach, clamp01, flash, type Num } from "./kit";
 import { PLATFORMS, POS, PLATFORM_Y } from "./layout";
 import { arrivedAt, restingAt } from "./ticketPath";
+import { CARRY_BOTTOM, CASSETTE_H, LUG_H, RAIL_Y, SEAT_BOTTOM, X_BAY, gantryAt, newGantryPose } from "./gantry";
 
 // ---- derived signals (pure functions of world state) ---------------------
 
@@ -361,22 +362,143 @@ export function Laya() {
   );
 }
 
+/** Shared per frame by the arm and the cassette, so they never disagree. */
+const gantry = newGantryPose();
+let gantryT = NaN;
+let gantryW: WorldState | null = null;
+function gantryNow() {
+  const w = W();
+  if (w !== gantryW || w.t !== gantryT) {
+    gantryAt(w, RM() ? Infinity : w.t, gantry);
+    gantryW = w;
+    gantryT = w.t;
+  }
+  return gantry;
+}
+
+/** Rail ends and supports, desk coordinates. */
+const RAIL_FROM = -5.55;
+const BAY = { x0: 10.3, x1: 12.7, z0: -5.5, z1: -3.7, top: PLATFORM_Y + 3.6 };
+const RAIL_TO = BAY.x1;
+const PORTALS = [-1.0, 4.0];
+/** Doorway in the bay's west wall the carried cassette passes through. */
+const DOOR = { y0: CARRY_BOTTOM - 0.1, y1: CARRY_BOTTOM + CASSETTE_H + LUG_H + 0.15, half: 0.85 };
+/** Slot for the hoist cables in the roof and above the doorway. */
+const SLOT = 0.12;
+const CARRIAGE_Y = RAIL_Y - 0.2;
+
+/**
+ * The capacity arm: an overhead crane from a mast on the tower roof, over the GPU cradle, into
+ * the capacity bay where GPU cassettes are kept. The carriage carries them in and out.
+ */
 export function Gantry() {
   const carriage = useRef<THREE.Group>(null);
-  const fromX = -5.4 - POS.autoscaler[0];
-  const toX = POS.gpuNode[0] - POS.autoscaler[0];
+  const hook = useRef<THREE.Group>(null);
+  const cables = useRef<THREE.Group>(null);
+  const door = useRef<THREE.Group>(null);
+  const o = POS.autoscaler;
   useFrame((_, dt) => {
-    const w = W();
-    const reaching = w.asg.desired === 1 && cpUp(w);
-    if (carriage.current) carriage.current.position.x = approach(carriage.current.position.x, reaching ? toX : fromX, 1.2, dt);
+    const gp = gantryNow();
+    if (carriage.current) carriage.current.position.x = gp.carriageX - o[0];
+    const drop = CARRIAGE_Y - 0.175 - gp.hookY;
+    if (hook.current) hook.current.position.y = -0.175 - drop;
+    if (cables.current) {
+      cables.current.scale.y = Math.max(0.001, drop);
+      cables.current.position.y = -0.175 - drop / 2;
+    }
+    if (door.current) {
+      // Open while a cassette hangs at carrying height (in the bay or on its way through).
+      const open = gp.cassette && gp.cassetteBottom > SEAT_BOTTOM + 0.5 ? 1 : 0;
+      const { playing, mode } = useTwin.getState();
+      const target = -(DOOR.y1 - DOOR.y0) * open;
+      door.current.position.y = playing || mode === "live" ? approach(door.current.position.y, target, 6, dt) : target;
+    }
   });
-  const p: Num = () => (servicesUp(W()) ? 0.7 : 0);
+  const p: Num = () => (cpUp(W()) ? 0.7 : 0.3);
+  const bayP: Num = () => 0.55;
+  const legH = RAIL_Y - 0.06 - PLATFORM_Y;
+  const bayH = BAY.top - PLATFORM_Y;
+  const bx = (BAY.x0 + BAY.x1) / 2;
+  const bz = (BAY.z0 + BAY.z1) / 2;
+  const bd = BAY.z1 - BAY.z0;
+  const wall = 0.12;
   return (
-    <Pickable id="autoscaler" position={POS.autoscaler} labelY={0.9} footprint={[0.01, 0.01]}>
-      <Block size={[toX - fromX + 1.2, 0.12, 0.18]} position={[(toX + fromX) / 2, 0, 0]} power={p} />
-      <group ref={carriage} position={[fromX, 0, 0]}>
-        <Block size={[0.6, 0.35, 0.5]} position={[0, -0.2, 0]} power={p} />
-        <Lamp position={[0, -0.2, 0.26]} size={[0.2, 0.1, 0.03]} on={() => (W().asg.desired === 1 ? 1 : 0)} color={C.violet} />
+    <Pickable id="autoscaler" position={o} labelY={0.6} footprint={[0.01, 0.01]}>
+      <group position={[-o[0], -o[1], -o[2]]}>
+        {/* Rail, with a mast on the tower roof, two portal frames and the bay roof under it. */}
+        <Block size={[RAIL_TO - RAIL_FROM, 0.12, 0.2]} position={[(RAIL_FROM + RAIL_TO) / 2, RAIL_Y, -4.6]} power={p} />
+        <Block size={[0.14, RAIL_Y - 3.4, 0.14]} position={[RAIL_FROM + 0.05, (RAIL_Y + 3.4) / 2, -4.6]} power={p} />
+        {PORTALS.map((x) => (
+          <group key={x}>
+            <Block size={[0.14, legH, 0.14]} position={[x, PLATFORM_Y + legH / 2, -5.4]} power={p} />
+            <Block size={[0.14, legH, 0.14]} position={[x, PLATFORM_Y + legH / 2, -3.8]} power={p} />
+            <Block size={[0.14, 0.1, 1.74]} position={[x, RAIL_Y - 0.11, -4.6]} power={p} />
+          </group>
+        ))}
+        <Block size={[0.2, RAIL_Y - 0.06 - BAY.top, 0.2]} position={[BAY.x0 + 0.3, (RAIL_Y - 0.06 + BAY.top) / 2, -4.6]} power={p} />
+        <Block size={[0.2, RAIL_Y - 0.06 - BAY.top, 0.2]} position={[BAY.x1 - 0.3, (RAIL_Y - 0.06 + BAY.top) / 2, -4.6]} power={p} />
+
+        {/* Capacity bay: closed except for the doorway; GPU cassettes are kept inside. */}
+        <Block size={[wall, bayH, bd]} position={[BAY.x1 - wall / 2, PLATFORM_Y + bayH / 2, bz]} power={bayP} edgeLit={C.violet} />
+        <Block size={[BAY.x1 - BAY.x0, bayH, wall]} position={[bx, PLATFORM_Y + bayH / 2, BAY.z0 + wall / 2]} power={bayP} edgeLit={C.violet} />
+        <Block size={[BAY.x1 - BAY.x0, bayH, wall]} position={[bx, PLATFORM_Y + bayH / 2, BAY.z1 - wall / 2]} power={bayP} edgeLit={C.violet} />
+        {[-1, 1].map((sgn) => (
+          <Block
+            key={sgn}
+            size={[BAY.x1 - BAY.x0, wall, bd / 2 - SLOT / 2]}
+            position={[bx, BAY.top - wall / 2, -4.6 + sgn * (SLOT / 2 + (bd / 2 - SLOT / 2) / 2)]}
+            power={bayP}
+            edgeLit={C.violet}
+          />
+        ))}
+        {/* West wall around the doorway. */}
+        <Block size={[wall, DOOR.y0 - PLATFORM_Y, bd]} position={[BAY.x0 + wall / 2, (PLATFORM_Y + DOOR.y0) / 2, bz]} power={bayP} edgeLit={C.violet} />
+        {[-1, 1].map((sgn) => (
+          <Block
+            key={sgn}
+            size={[wall, BAY.top - DOOR.y1, bd / 2 - SLOT / 2]}
+            position={[BAY.x0 + wall / 2, (BAY.top + DOOR.y1) / 2, -4.6 + sgn * (SLOT / 2 + (bd / 2 - SLOT / 2) / 2)]}
+            power={bayP}
+            edgeLit={C.violet}
+          />
+        ))}
+        {[-1, 1].map((sgn) => (
+          <Block
+            key={sgn}
+            size={[wall, DOOR.y1 - DOOR.y0, bd / 2 - DOOR.half]}
+            position={[BAY.x0 + wall / 2, (DOOR.y0 + DOOR.y1) / 2, bz + sgn * (DOOR.half + (bd / 2 - DOOR.half) / 2)]}
+            power={bayP}
+            edgeLit={C.violet}
+          />
+        ))}
+        {/* Dark interior. */}
+        <mesh position={[bx + wall / 2, PLATFORM_Y + 0.005, bz]}>
+          <boxGeometry args={[BAY.x1 - BAY.x0 - wall * 2, 0.01, bd - wall * 2]} />
+          <meshBasicMaterial color={C.off} />
+        </mesh>
+        {/* Roll-down door: drops into the wall below the doorway when open. */}
+        <group ref={door}>
+          <Block size={[0.06, DOOR.y1 - DOOR.y0, DOOR.half * 2]} position={[BAY.x0 + wall / 2, (DOOR.y0 + DOOR.y1) / 2, bz]} power={bayP} edgeLit={C.violet} />
+        </group>
+      </group>
+
+      <group ref={carriage} position={[X_BAY - o[0], CARRIAGE_Y - o[1], -4.6 - o[2]]}>
+        <Block size={[0.7, 0.35, 0.5]} position={[0, 0, 0]} power={p} />
+        <Lamp position={[0, 0, 0.26]} size={[0.2, 0.1, 0.03]} on={() => (W().asg.desired === 1 ? 1 : 0)} color={C.violet} />
+        {/* Hoist: two cables down to the hook bar. Unit height, scaled to the drop. */}
+        <group ref={cables}>
+          <mesh position={[-0.45, 0, 0]}>
+            <boxGeometry args={[0.03, 1, 0.03]} />
+            <meshBasicMaterial color={C.lavEdge} />
+          </mesh>
+          <mesh position={[0.45, 0, 0]}>
+            <boxGeometry args={[0.03, 1, 0.03]} />
+            <meshBasicMaterial color={C.lavEdge} />
+          </mesh>
+        </group>
+        <group ref={hook}>
+          <Block size={[1.2, 0.07, 0.24]} position={[0, 0.035, 0]} power={p} />
+        </group>
       </group>
     </Pickable>
   );
@@ -404,24 +526,6 @@ export function Keda() {
 
 // ---- Zone C: GPU --------------------------------------------------------
 
-function cassetteY(w: WorldState): number {
-  const seated = 0.55;
-  const away = 4.2;
-  const dt = w.t - w.gpu.since;
-  switch (w.gpu.state) {
-    case "launching":
-      return away - (away - 1.4) * clamp01(dt / (SAMPLE.gpuLaunchSeconds * 1000));
-    case "running":
-      return seated;
-    case "terminating":
-      return seated + (away - seated) * clamp01(dt / (SAMPLE.gpuTerminateSeconds * 1000));
-    case "launch_failed":
-      return 2.6;
-    default:
-      return away;
-  }
-}
-
 function loadProgress(w: WorldState): number {
   if (w.vllm.state === "ready") return 1;
   if (w.vllm.state === "loading") return clamp01((w.t - w.vllm.since) / (SAMPLE.modelLoadSeconds * 1000)) * 0.95;
@@ -437,9 +541,11 @@ export function GpuNode() {
   useFrame((_, dt) => {
     const w = W();
     if (cassette.current) {
-      cassette.current.position.y = approach(cassette.current.position.y, cassetteY(w), 5, dt);
-      const visible = gpuPresent(w) || cassette.current.position.y < 4;
-      cassette.current.visible = visible;
+      // Carried by the capacity arm; never moves on its own.
+      const gp = gantryNow();
+      cassette.current.position.x = gp.cassetteX - POS.gpuNode[0];
+      cassette.current.position.y = gp.cassetteBottom - POS.gpuNode[1];
+      cassette.current.visible = gp.cassette;
     }
     if (core.current && coreMat.current) {
       const fill = loadProgress(w);
@@ -457,7 +563,7 @@ export function GpuNode() {
       <Block size={[2.8, 0.4, 1.8]} position={[0, 0.2, 0]} power={cradleP} edgeLit={C.violet} />
       <Block size={[2.8, 0.25, 0.14]} position={[0, 0.5, -0.82]} power={cradleP} />
       <Block size={[2.8, 0.25, 0.14]} position={[0, 0.5, 0.82]} power={cradleP} />
-      <group ref={cassette} position={[0, 4.2, 0]}>
+      <group ref={cassette} position={[X_BAY - POS.gpuNode[0], CARRY_BOTTOM - POS.gpuNode[1], 0]} visible={false}>
         <Block size={[2.3, 1.15, 1.4]} position={[0, 0.575, 0]} power={cassP} edgeLit={C.violet} />
         <Block size={[1.9, 0.75, 0.04]} position={[0, 0.575, 0.7]} power={() => 0} dim={C.side} edgeDim={C.violet} />
         <mesh ref={core} position={[0, 0.575, 0.72]}>
@@ -465,6 +571,8 @@ export function GpuNode() {
           <meshBasicMaterial ref={coreMat} color={C.off} toneMapped={false} />
         </mesh>
         <Lamp position={[0.95, 0.2, 0.71]} size={[0.14, 0.14, 0.02]} on={() => (W().gpu.spotWarningAt ? 1 : 0)} color={C.amber} />
+        {/* Lifting lug the hook bar engages. */}
+        <Block size={[1.0, LUG_H, 0.2]} position={[0, CASSETTE_H + LUG_H / 2, 0]} power={cassP} />
       </group>
       {/* KEDA cooldown: model ready but idle */}
       <ProgressRing
@@ -512,10 +620,18 @@ export function VllmHandle() {
   );
 }
 
+/** The stop guard's boom pivots at the cradle's west end, at seat height. */
+const BOOM_PIVOT: [number, number, number] = [5.3 - POS.guard[0], 1.1 - POS.guard[1], -4.6 - POS.guard[2]];
+const BOOM_LEN = 2.6;
+
 export function Guard() {
   const latch = useRef<THREE.Group>(null);
+  const boom = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
-    if (latch.current) latch.current.rotation.x = approach(latch.current.rotation.x, W().guardLocked ? 0 : -1.2, 8, dt);
+    const locked = W().guardLocked;
+    if (latch.current) latch.current.rotation.x = approach(latch.current.rotation.x, locked ? 0 : -1.2, 8, dt);
+    // Locked: the boom lies across the cradle, so no cassette can be set down. Released: it stands up.
+    if (boom.current) boom.current.rotation.z = approach(boom.current.rotation.z, locked ? 0 : Math.PI / 2, 4, dt);
   });
   return (
     <Pickable id="guard" position={POS.guard} labelY={1.3} footprint={[0.7, 0.4]}>
@@ -524,6 +640,10 @@ export function Guard() {
         <Block size={[0.5, 0.35, 0.12]} position={[0, 0.17, 0]} power={() => 0.5} />
       </group>
       <Lamp position={[0, 0.15, 0.16]} size={[0.3, 0.1, 0.02]} on={() => (W().guardLocked ? 1 : 0)} color={C.amber} />
+      <Block size={[0.16, BOOM_PIVOT[1] + 0.05, 0.16]} position={[BOOM_PIVOT[0], (BOOM_PIVOT[1] - 0.05) / 2, BOOM_PIVOT[2]]} power={() => 0.5} />
+      <group ref={boom} position={BOOM_PIVOT}>
+        <Block size={[BOOM_LEN, 0.1, 0.1]} position={[BOOM_LEN / 2, 0, 0]} power={() => (W().guardLocked ? 1 : 0.4)} lit={C.amber} edgeLit={C.amber} />
+      </group>
     </Pickable>
   );
 }

@@ -10,6 +10,7 @@ import { C, RM, W, approach } from "./kit";
 import { stackOffset } from "./layout";
 import { CABLE_EDGES, along, cableRoute, type CableNode, type Route } from "./routes";
 import { newPose, poseAt, restingAt } from "./ticketPath";
+import { ARM_PULSE_SPEED } from "./gantry";
 
 const STAMP: Record<TicketTone, string> = {
   plain: C.ticket,
@@ -102,6 +103,8 @@ export function Tickets() {
 interface PulseSpec {
   stops: readonly CableNode[];
   color: string;
+  /** Desk units per second; defaults to PULSE_SPEED. */
+  speed?: number;
 }
 
 /** Which events send a pulse, and along which cables. Purely a function of the event, so seeking is safe. */
@@ -118,7 +121,8 @@ function pulseFor(e: TwinEvent): PulseSpec | null {
     case "keda.scale":
       return e.data.replicas === 1 ? { stops: ["gqSensor", "keda"], color: C.violet } : null;
     case "asg.desired":
-      return e.data.desired === 1 ? { stops: ["tower", "gpu"], color: C.violet } : null;
+      // The autoscaler's order runs along the arm's rail to the carriage, which then moves.
+      return { stops: ["tower", "armBay"], color: C.violet, speed: ARM_PULSE_SPEED };
     case "node.joined":
       return { stops: ["gpu", "tower"], color: C.violet };
     case "ebs.attached":
@@ -189,7 +193,7 @@ export function Signals() {
         const spec = pulseFor(e);
         if (!spec) continue;
         const r = routeOf(spec.stops);
-        const head = ((t - e.ts) / 1000) * PULSE_SPEED;
+        const head = ((t - e.ts) / 1000) * (spec.speed ?? PULSE_SPEED);
         if (head - (TRAIL - 1) * TRAIL_GAP > r.len) continue;
         for (let k = 0; k < TRAIL && used < POOL; k += 1) {
           const d = head - k * TRAIL_GAP;

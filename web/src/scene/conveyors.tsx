@@ -194,6 +194,8 @@ const LINE: Record<Exclude<CableLine, "hidden">, { color: string; on: Num }> = {
   gpu: { color: C.violet, on: () => (W().gpu.state !== "none" ? 0.8 : 0) },
   guard: { color: C.amber, on: () => (W().guardLocked ? 0.35 : 0.15) },
   ops: { color: C.lav, on: () => (cpUp(W()) ? 0.5 : 0.15) },
+  // The seam along the top of the capacity arm's rail.
+  arm: { color: C.violet, on: () => (cpUp(W()) ? 0.45 : 0.1) },
 };
 
 /** Cables on the desk and platforms. Signal pulses travel only along these. */

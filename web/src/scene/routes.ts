@@ -293,12 +293,15 @@ const CABLE_NODES = {
   ssmB: [-9.6, 0.03, -1.15],
   ssmC: [-9.6, 0.43, -1.25],
   ssmD: [-9.6, 0.43, -3.3],
+  // Along the top of the capacity arm's rail, from the tower mast to the carriage's home in the bay.
+  armTop: [-5.5, 4.68, -4.6],
+  armBay: [11.5, 4.68, -4.6],
 } satisfies Record<string, P3>;
 
 export type CableNode = keyof typeof CABLE_NODES;
 
 /** Which power a cable shows at rest. Hidden runs are inside an object and never drawn. */
-export type CableLine = "net" | "cp" | "gpu" | "guard" | "ops" | "hidden";
+export type CableLine = "net" | "cp" | "gpu" | "guard" | "ops" | "arm" | "hidden";
 
 const c = (from: CableNode, to: CableNode, line: CableLine) => ({ from, to, line, bi: true });
 
@@ -348,6 +351,8 @@ export const CABLE_EDGES = [
   c("ssmB", "ssmC", "ops"),
   c("ssmC", "ssmD", "ops"),
   c("ssmD", "wdJ", "ops"),
+  c("tower", "armTop", "hidden"),
+  c("armTop", "armBay", "arm"),
 ] as const;
 
 export const CABLES = makeGraph<CableNode>(CABLE_NODES, CABLE_EDGES);

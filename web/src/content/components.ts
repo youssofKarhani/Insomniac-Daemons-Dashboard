@@ -158,7 +158,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
   autoscaler: {
     name: "Capacity arm",
     aws: "Kubernetes Cluster Autoscaler",
-    object: "Arm from tower to cradle",
+    object: "Overhead crane from the tower, over the cradle, to the capacity bay",
     plain: "When the model server has nowhere to run, it orders a GPU machine. When the machine is no longer needed, it sends it away.",
     engineer: ["Sees the pending GPU pod and sets the Auto Scaling group to 1.", "Removes the node after 2 minutes unneeded."],
     alwaysOn: false,
@@ -179,7 +179,7 @@ export const OBJECTS: Record<ObjectId, ObjectInfo> = {
   guard: {
     name: "Stop guard",
     aws: "Amazon EventBridge rule (EC2 state change)",
-    object: "Latch on the cradle",
+    object: "Latch and boom across the cradle",
     plain: "A second safety: when the tower switches off, this latch makes sure no GPU can start.",
     engineer: ["On control-plane stopping/stopped, the Lambda sets the GPU group to 0 and suspends Launch.", "Released again when the tower is woken."],
     alwaysOn: true,

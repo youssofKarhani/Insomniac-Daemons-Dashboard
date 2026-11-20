@@ -28,7 +28,7 @@ export const DEFAULT_MAX_GAP_MS = 6_000;
 const LEAD_MS = 1_500;
 const TAIL_MS = 3_000;
 /** Motion set off by an event (belts, cable pulses) finishes within this long; never fast-forward it. */
-export const REALTIME_AFTER_EVENT_MS = 5_000;
+export const REALTIME_AFTER_EVENT_MS = 8_000;
 
 export function buildTimeline(raw: readonly TwinEvent[], maxGapMs = DEFAULT_MAX_GAP_MS): Timeline {
   const events = sortEvents(raw);
