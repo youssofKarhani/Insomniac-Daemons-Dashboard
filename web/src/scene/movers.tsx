@@ -7,7 +7,9 @@ import { lastIndexAt } from "../model/replay";
 import { ticketsByLocation, ticketTone, type TicketTone } from "../model/tickets";
 import { useTwin } from "../store";
 import { C, RM, W, approach } from "./kit";
-import { ANCHOR, POS, stackOffset } from "./layout";
+import { stackOffset } from "./layout";
+import { CABLE_EDGES, along, cableRoute, type CableNode, type Route } from "./routes";
+import { newPose, poseAt, restingAt } from "./ticketPath";
 
 const STAMP: Record<TicketTone, string> = {
   plain: C.ticket,
@@ -19,22 +21,34 @@ const STAMP: Record<TicketTone, string> = {
 };
 const stampColor = (j: JobView) => STAMP[ticketTone(j)];
 
-function Ticket({ job, target }: { job: JobView; target: [number, number, number] }) {
+const Yv = new THREE.Vector3(0, 1, 0);
+
+function Ticket({ job, offset }: { job: JobView; offset: [number, number, number] }) {
   const g = useRef<THREE.Group>(null);
   const placed = useRef(false);
+  const pose = useMemo(newPose, []);
+  const q = useMemo(() => new THREE.Quaternion(), []);
+  const upV = useMemo(() => new THREE.Vector3(), []);
   useFrame((_, dt) => {
     const m = g.current;
     if (!m) return;
-    const lift = job.inFlight ? 0.25 + 0.05 * Math.sin(W().t / 300) : 0;
-    if (!placed.current) {
-      m.position.set(target[0], target[1] + lift, target[2]);
+    const rm = RM();
+    poseAt(job, rm ? Infinity : W().t, offset, pose);
+    q.setFromUnitVectors(Yv, upV.set(...pose.up));
+    const { playing, mode } = useTwin.getState();
+    // While playing, follow the pose closely (this also smooths a slot change in a queue).
+    // When paused or scrubbing, sit exactly where the job is.
+    if (!placed.current || rm || !(playing || mode === "live")) {
+      m.position.set(...pose.pos);
+      m.quaternion.copy(q);
       placed.current = true;
       return;
     }
-    const k = 4.5;
-    m.position.x = approach(m.position.x, target[0], k, dt);
-    m.position.y = approach(m.position.y, target[1] + lift, k, dt);
-    m.position.z = approach(m.position.z, target[2], k, dt);
+    const k = 14;
+    m.position.x = approach(m.position.x, pose.pos[0], k, dt);
+    m.position.y = approach(m.position.y, pose.pos[1], k, dt);
+    m.position.z = approach(m.position.z, pose.pos[2], k, dt);
+    m.quaternion.slerp(q, 1 - Math.exp(-10 * Math.min(dt, 0.05)));
   });
   return (
     <group ref={g}>
@@ -52,81 +66,114 @@ function Ticket({ job, target }: { job: JobView; target: [number, number, number
           <meshBasicMaterial color={C.amber} toneMapped={false} />
         </mesh>
       ))}
+      {/* Held by the worker: a claim band across the ticket instead of the ticket floating. */}
+      {job.inFlight && (
+        <mesh position={[-0.12, 0.065, 0]}>
+          <boxGeometry args={[0.09, 0.04, 0.56]} />
+          <meshBasicMaterial color={C.violet} toneMapped={false} />
+        </mesh>
+      )}
     </group>
   );
 }
 
-/** Job tickets, each easing toward the anchor of its current location. */
+/** Job tickets, each riding the belts along its own hop history. */
 export function Tickets() {
   const jobs = useTwin((s) => s.world.jobs);
   const depth = useTwin((s) => s.world.queueDepth);
   const placed = useMemo(() => {
-    const out: { job: JobView; target: [number, number, number] }[] = [];
-    for (const list of ticketsByLocation(jobs, depth).values()) {
-      list.forEach((job, n) => {
-        const a = ANCHOR[job.location];
-        const o = stackOffset(job.location, n);
-        out.push({ job, target: [a[0] + o[0], a[1] + o[1], a[2] + o[2]] });
-      });
+    const out: { job: JobView; offset: [number, number, number] }[] = [];
+    for (const [loc, list] of ticketsByLocation(jobs, depth)) {
+      list.forEach((job, n) => out.push({ job, offset: stackOffset(loc, n) }));
     }
     return out;
   }, [jobs, depth]);
   return (
     <group>
-      {placed.map(({ job, target }) => (
-        <Ticket key={job.id} job={job} target={target} />
+      {placed.map(({ job, offset }) => (
+        <Ticket key={job.id} job={job} offset={offset} />
       ))}
     </group>
   );
 }
 
-// ---- Signals: short light pulses travelling between objects ---------------
+// ---- Signals: light pulses travelling along the cables ---------------------
 
-type P3 = [number, number, number];
-const up = (p: P3, y: number): P3 => [p[0], p[1] + y, p[2]];
-
-interface Path {
-  from: P3;
-  to: P3;
+interface PulseSpec {
+  stops: readonly CableNode[];
   color: string;
-  dur: number;
 }
 
-/** Which events send a pulse, and where. Purely a function of the event, so seeking is safe. */
-function pathFor(e: TwinEvent): Path | null {
+/** Which events send a pulse, and along which cables. Purely a function of the event, so seeking is safe. */
+function pulseFor(e: TwinEvent): PulseSpec | null {
   switch (e.kind) {
-    case "cp.state":
-      return e.data.state === "pending" ? { from: up(POS.lambda, 1.6), to: up(POS.controlPlane, 2.2), color: C.aqua, dur: 1600 } : null;
+    case "ingress.request":
+      return { stops: ["net", "lambda"], color: C.lavEdge };
     case "ingress.prewarm":
-      return { from: up(POS.clock, 1.5), to: up(POS.lambda, 1.4), color: C.lavEdge, dur: 1200 };
+      return { stops: ["clock", "lambda"], color: C.lavEdge };
+    case "cp.state":
+      if (e.data.state === "pending") return { stops: ["lambda", "tower"], color: C.aqua };
+      if (e.data.state === "stopping") return { stops: ["wdBack", "tower"], color: C.lav };
+      return null;
     case "keda.scale":
-      return e.data.replicas === 1 ? { from: up(POS.gpuQueue, 0.4), to: up(POS.keda, 1.2), color: C.violet, dur: 900 } : null;
+      return e.data.replicas === 1 ? { stops: ["gqSensor", "keda"], color: C.violet } : null;
     case "asg.desired":
-      return e.data.desired === 1 ? { from: up(POS.controlPlane, 3.2), to: up(POS.gpuNode, 2.6), color: C.violet, dur: 2000 } : null;
+      return e.data.desired === 1 ? { stops: ["tower", "gpu"], color: C.violet } : null;
     case "node.joined":
-      return { from: up(POS.gpuNode, 1.2), to: up(POS.controlPlane, 1.4), color: C.violet, dur: 1800 };
+      return { stops: ["gpu", "tower"], color: C.violet };
     case "ebs.attached":
-      return { from: up(POS.modelVolume, 0.9), to: up(POS.gpuNode, 0.9), color: C.violet, dur: 900 };
+      return { stops: ["drive", "gpu"], color: C.violet };
     case "guard.latch":
-      return e.data.locked ? { from: up(POS.lambda, 1.4), to: up(POS.guard, 0.4), color: C.amber, dur: 2200 } : null;
+      // Locking follows the tower stopping: EventBridge tells the wake switch, which locks the guard.
+      return e.data.locked
+        ? { stops: ["tower", "lambda", "guard"], color: C.amber }
+        : { stops: ["lambda", "guard"], color: C.amber };
+    case "ssm.session":
+      return e.data.open ? { stops: ["ssmBack", "tower"], color: C.violet } : null;
     default:
       return null;
   }
 }
 
-const POOL = 14;
+const routeCache = new Map<string, Route>();
+function routeOf(stops: readonly CableNode[]): Route {
+  const key = stops.join(">");
+  let r = routeCache.get(key);
+  if (!r) routeCache.set(key, (r = cableRoute(stops)));
+  return r;
+}
+
+/** Pulse speed along a cable, desk units per second of source time. */
+const PULSE_SPEED = 7;
+const LOOKBACK_MS = 8_000;
+const POOL = 18;
 const TRAIL = 4;
+const TRAIL_GAP = 0.16;
+const TOKENS = 5;
 
 export function Signals() {
   const meshes = useRef<(THREE.Mesh | null)[]>([]);
-  const tmp = useMemo(() => new THREE.Vector3(), []);
-  const to = useMemo(() => new THREE.Vector3(), []);
+  const at = useMemo<[number, number, number]>(() => [0, 0, 0], []);
   // Colours are parsed once, not every frame.
   const colors = useMemo(() => new Map<string, THREE.Color>(), []);
   const color = (hex: string) => {
     let c = colors.get(hex);
     if (!c) colors.set(hex, (c = new THREE.Color(hex)));
     return c;
+  };
+  /** Places pulse mesh `i` at distance `d` along `r`, hidden while that point is inside an object. */
+  const put = (i: number, r: Route, d: number, hex: string, scale: number) => {
+    const m = meshes.current[i];
+    if (!m) return;
+    const seg = along(r, d, at);
+    if (seg && seg.edge >= 0 && CABLE_EDGES[seg.edge].line === "hidden") {
+      m.visible = false;
+      return;
+    }
+    m.position.set(at[0], at[1] + 0.06, at[2]);
+    m.scale.setScalar(scale);
+    (m.material as THREE.MeshBasicMaterial).color.copy(color(hex));
+    m.visible = true;
   };
   useFrame(() => {
     const { timeline, reducedMotion } = useTwin.getState();
@@ -138,36 +185,25 @@ export function Signals() {
       // Start at the playhead: later events have not happened yet.
       for (let i = lastIndexAt(ev, t); i >= 0 && used < POOL; i -= 1) {
         const e = ev[i];
-        if (t - e.ts > 2400) break;
-        const path = pathFor(e);
-        if (!path) continue;
-        const f = (t - e.ts) / path.dur;
-        if (f > 1) continue;
+        if (t - e.ts > LOOKBACK_MS) break;
+        const spec = pulseFor(e);
+        if (!spec) continue;
+        const r = routeOf(spec.stops);
+        const head = ((t - e.ts) / 1000) * PULSE_SPEED;
+        if (head - (TRAIL - 1) * TRAIL_GAP > r.len) continue;
         for (let k = 0; k < TRAIL && used < POOL; k += 1) {
-          const fk = Math.max(0, f - k * 0.04);
-          const m = meshes.current[used++];
-          if (!m) continue;
-          tmp.set(...path.from).lerp(to.set(...path.to), fk);
-          tmp.y += Math.sin(fk * Math.PI) * 1.2;
-          m.position.copy(tmp);
-          m.scale.setScalar(1 - k * 0.22);
-          (m.material as THREE.MeshBasicMaterial).color.copy(color(path.color));
-          m.visible = true;
+          const d = head - k * TRAIL_GAP;
+          if (d < 0 || d > r.len) continue;
+          put(used++, r, d, spec.color, 1 - k * 0.22);
         }
       }
-      // Token stream while a job is being generated.
-      const generating = Object.values(world.jobs).some((j) => j.location === "core");
+      // Token stream from the model back to the LiteLLM gateway while a job is being generated.
+      const generating = Object.values(world.jobs).some((j) => j.location === "core" && restingAt(j, t) === "core");
       if (generating) {
-        for (let k = 0; k < 5 && used < POOL; k += 1) {
-          const f = ((t / 900 + k / 5) % 1 + 1) % 1;
-          const m = meshes.current[used++];
-          if (!m) continue;
-          tmp.set(...up(POS.gpuNode, 1.8)).lerp(to.set(...up(POS.controlPlane, 2.6)), f);
-          tmp.y += Math.sin(f * Math.PI) * 0.9;
-          m.position.copy(tmp);
-          m.scale.setScalar(0.6);
-          (m.material as THREE.MeshBasicMaterial).color.copy(color(C.violet));
-          m.visible = true;
+        const r = routeOf(["gpu", "litellm"]);
+        for (let k = 0; k < TOKENS && used < POOL; k += 1) {
+          const d = ((((t / 1000) * PULSE_SPEED * 0.6 + (k * r.len) / TOKENS) % r.len) + r.len) % r.len;
+          put(used++, r, d, C.violet, 0.6);
         }
       }
     }

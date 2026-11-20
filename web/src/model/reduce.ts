@@ -17,15 +17,18 @@ function upsertJob(s: WorldState, e: TwinEvent): JobView | undefined {
     receiveCount: 0,
     enqueuedAt: e.ts,
     seq: s.seq,
+    hops: [],
   };
 }
 
-function move(s: WorldState, job: JobView, location: JobLocation): JobView {
+function move(s: WorldState, job: JobView, location: JobLocation, at: number): JobView {
   if (job.location !== location) {
     s.seq += 1;
     job.seq = s.seq;
     job.location = location;
   }
+  const last = job.hops[job.hops.length - 1];
+  if (!last || last.to !== location) job.hops = [...job.hops, { to: location, at }];
   return job;
 }
 
@@ -47,7 +50,7 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
     case "ingress.request": {
       s.pulses = { ...s.pulses, gateway: e.ts, route: str(e, "route", "/jobs") };
       const job = upsertJob(s, e);
-      if (job) s.jobs = { ...s.jobs, [job.id]: move(s, job, "arch") };
+      if (job) s.jobs = { ...s.jobs, [job.id]: move(s, job, "arch", e.ts) };
       break;
     }
     case "ingress.prewarm":
@@ -62,7 +65,7 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
       const gpu = str(e, "queue") === "gpu";
       job.step = gpu ? "waiting_gpu" : "queued";
       job.inFlight = false;
-      s.jobs = { ...s.jobs, [job.id]: move(s, job, gpu ? "gpuQueue" : "workflow") };
+      s.jobs = { ...s.jobs, [job.id]: move(s, job, gpu ? "gpuQueue" : "workflow", e.ts) };
       break;
     }
     case "job.dequeued": {
@@ -70,10 +73,10 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
       if (!job) break;
       if (str(e, "queue") === "gpu") {
         job.inFlight = true;
-        s.jobs = { ...s.jobs, [job.id]: move(s, job, "gpuQueue") };
+        s.jobs = { ...s.jobs, [job.id]: move(s, job, "gpuQueue", e.ts) };
       } else {
         job.step = "picked";
-        s.jobs = { ...s.jobs, [job.id]: move(s, job, "worker") };
+        s.jobs = { ...s.jobs, [job.id]: move(s, job, "worker", e.ts) };
       }
       break;
     }
@@ -83,7 +86,7 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
       job.step = "scanning";
       const r = str(e, "result");
       job.gate = r === "reject" ? "reject" : r === "decision" ? "decision" : "pass";
-      s.jobs = { ...s.jobs, [job.id]: move(s, job, "laya") };
+      s.jobs = { ...s.jobs, [job.id]: move(s, job, "laya", e.ts) };
       break;
     }
     case "job.generate": {
@@ -92,7 +95,7 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
       job.step = "generating";
       job.inFlight = false;
       job.attempts = Math.max(job.attempts, num(e, "attempt", job.attempts + 1));
-      s.jobs = { ...s.jobs, [job.id]: move(s, job, "core") };
+      s.jobs = { ...s.jobs, [job.id]: move(s, job, "core", e.ts) };
       break;
     }
     case "laya.verify": {
@@ -100,7 +103,7 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
       if (!job) break;
       job.step = "verifying";
       job.verifyPassed = bool(e, "passed");
-      s.jobs = { ...s.jobs, [job.id]: move(s, job, "laya") };
+      s.jobs = { ...s.jobs, [job.id]: move(s, job, "laya", e.ts) };
       s.gpu = { ...s.gpu, lastWorkAt: e.ts };
       break;
     }
@@ -111,7 +114,7 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
       job.step = "retrying";
       job.inFlight = false;
       job.receiveCount = Math.max(job.receiveCount, num(e, "receiveCount", job.receiveCount));
-      s.jobs = { ...s.jobs, [job.id]: move(s, job, gpu ? "gpuQueue" : "workflow") };
+      s.jobs = { ...s.jobs, [job.id]: move(s, job, gpu ? "gpuQueue" : "workflow", e.ts) };
       if (gpu) s.gpu = { ...s.gpu, lastWorkAt: e.ts };
       break;
     }
@@ -122,7 +125,7 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
       job.step = "done";
       job.outcome = "dlq";
       job.finishedAt = e.ts;
-      s.jobs = { ...s.jobs, [job.id]: move(s, job, gpu ? "gpuDlq" : "workflowDlq") };
+      s.jobs = { ...s.jobs, [job.id]: move(s, job, gpu ? "gpuDlq" : "workflowDlq", e.ts) };
       s.counters = { ...s.counters, dlq: s.counters.dlq + 1 };
       break;
     }
@@ -133,7 +136,7 @@ export function reduce(prev: WorldState, e: TwinEvent): WorldState {
       job.step = "done";
       job.outcome = outcome;
       job.finishedAt = e.ts;
-      s.jobs = { ...s.jobs, [job.id]: move(s, job, "crate") };
+      s.jobs = { ...s.jobs, [job.id]: move(s, job, "crate", e.ts) };
       s.counters = { ...s.counters, [outcome]: s.counters[outcome] + 1 };
       if (job.attempts > 0) s.gpu = { ...s.gpu, lastWorkAt: e.ts };
       break;

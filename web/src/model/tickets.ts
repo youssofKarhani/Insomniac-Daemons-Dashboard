@@ -32,6 +32,7 @@ export function ticketsByLocation(jobs: WorldState["jobs"], depth: WorldState["q
         receiveCount: 0,
         enqueuedAt: 0,
         seq: -100 + i,
+        hops: [],
       });
     }
     byLoc.set(loc, list);

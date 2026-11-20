@@ -13,6 +13,7 @@ import { useTwin } from "../store";
 import { C, W, approach, demand, wake } from "./kit";
 import { DESK_ROTATION, POS } from "./layout";
 import { Tickets, Signals } from "./movers";
+import { Belts, Cables, Lift } from "./conveyors";
 import {
   Clock,
   Crate,
@@ -29,7 +30,6 @@ import {
   ModelVolume,
   Platforms,
   Pods,
-  Rails,
   Ssm,
   Tower,
   VllmHandle,
@@ -171,7 +171,9 @@ export function World() {
       <Lights />
       <group rotation={[0, DESK_ROTATION, 0]}>
         <Desk />
-        <Rails />
+        <Cables />
+        <Belts />
+        <Lift />
         <Platforms />
         <Clock />
         <Gateway />

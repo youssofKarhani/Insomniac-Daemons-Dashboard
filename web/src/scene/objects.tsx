@@ -3,16 +3,19 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { CONFIG, SAMPLE } from "../model/timings";
 import { useTwin } from "../store";
-import type { WorldState } from "../model/state";
-import { Block, C, Lamp, Pickable, ProgressRing, W, approach, clamp01, flash, type Num } from "./kit";
+import type { JobLocation, WorldState } from "../model/state";
+import { Block, C, Lamp, Pickable, ProgressRing, RM, W, approach, clamp01, flash, type Num } from "./kit";
 import { PLATFORMS, POS, PLATFORM_Y } from "./layout";
+import { arrivedAt, restingAt } from "./ticketPath";
 
 // ---- derived signals (pure functions of world state) ---------------------
 
 const cpUp = (w: WorldState) => w.cp.state !== "stopped";
 const servicesUp = (w: WorldState) => w.cp.state === "running" && w.cp.podsReady;
 const gpuPresent = (w: WorldState) => w.gpu.state !== "none";
-const jobAt = (w: WorldState, loc: string) => Object.values(w.jobs).find((j) => j.location === loc);
+/** The job whose ticket is physically at `loc` (it may still be on its way there after the event). */
+const jobAt = (w: WorldState, loc: JobLocation) =>
+  Object.values(w.jobs).find((j) => (RM() ? j.location === loc : restingAt(j, w.t) === loc));
 
 /** Restful glow for always-on managed services, brighter when they act. */
 const managed = (f: number) => 0.45 + 0.55 * f;
@@ -77,6 +80,11 @@ export function Gateway() {
       <Block size={[0.45, 1.9, 0.45]} position={[-0.85, 1.7, 0]} power={p} />
       <Block size={[0.45, 1.9, 0.45]} position={[0.85, 1.7, 0]} power={p} />
       <Block size={[2.15, 0.45, 0.55]} position={[0, 2.85, 0]} power={p} />
+      {/* Slot the job ticket rises out of. */}
+      <mesh position={[0, 0.752, 0]}>
+        <boxGeometry args={[0.9, 0.004, 0.62]} />
+        <meshBasicMaterial color={C.off} />
+      </mesh>
       {ROUTES.map((r, i) => (
         <Lamp
           key={r}
@@ -125,16 +133,59 @@ export function Ssm() {
 
 // ---- Buffer -------------------------------------------------------------
 
-function Tray({ width = 2.6, depth = 1.4, power, trim }: { width?: number; depth?: number; power: Num; trim?: string }) {
+type Side = "n" | "s" | "e" | "w";
+/** A gap in one wall, `at` measured along that wall from its centre. Belts and chutes pass through these. */
+interface Opening {
+  side: Side;
+  at: number;
+}
+const GAP = 0.9;
+
+function Tray({
+  width = 2.6,
+  depth = 1.4,
+  power,
+  trim,
+  openings = [],
+}: {
+  width?: number;
+  depth?: number;
+  power: Num;
+  trim?: string;
+  openings?: Opening[];
+}) {
   const h = 0.3;
   const wall = 0.08;
+  const edge = trim ?? C.lavEdge;
+  const walls = (["n", "s", "w", "e"] as Side[]).flatMap((side) => {
+    const alongX = side === "n" || side === "s";
+    const span = alongX ? width : depth;
+    let pieces: [number, number][] = [[-span / 2, span / 2]];
+    for (const o of openings.filter((x) => x.side === side)) {
+      const c0 = o.at - GAP / 2;
+      const c1 = o.at + GAP / 2;
+      pieces = pieces.flatMap(([a, b]) => {
+        const out: [number, number][] = [];
+        if (c0 > a) out.push([a, Math.min(b, c0)]);
+        if (c1 < b) out.push([Math.max(a, c1), b]);
+        return out.filter(([x, y]) => y - x > 0.01);
+      });
+    }
+    const fixed = side === "n" ? -depth / 2 : side === "s" ? depth / 2 : side === "w" ? -width / 2 : width / 2;
+    return pieces.map(([a, b], i) => {
+      const mid = (a + b) / 2;
+      const len = b - a;
+      return alongX ? (
+        <Block key={side + i} size={[len, h, wall]} position={[mid, h / 2, fixed]} power={power} edgeLit={edge} />
+      ) : (
+        <Block key={side + i} size={[wall, h, len]} position={[fixed, h / 2, mid]} power={power} edgeLit={edge} />
+      );
+    });
+  });
   return (
     <group>
-      <Block size={[width, 0.12, depth]} position={[0, 0.06, 0]} power={power} edgeLit={trim ?? C.lavEdge} />
-      <Block size={[width, h, wall]} position={[0, h / 2, -depth / 2]} power={power} edgeLit={trim ?? C.lavEdge} />
-      <Block size={[width, h, wall]} position={[0, h / 2, depth / 2]} power={power} edgeLit={trim ?? C.lavEdge} />
-      <Block size={[wall, h, depth]} position={[-width / 2, h / 2, 0]} power={power} edgeLit={trim ?? C.lavEdge} />
-      <Block size={[wall, h, depth]} position={[width / 2, h / 2, 0]} power={power} edgeLit={trim ?? C.lavEdge} />
+      <Block size={[width, 0.12, depth]} position={[0, 0.06, 0]} power={power} edgeLit={edge} />
+      {walls}
     </group>
   );
 }
@@ -146,7 +197,15 @@ export function WorkflowQueue() {
   };
   return (
     <Pickable id="workflowQueue" position={POS.workflowQueue} labelAt={[0, 0, 1.25]} footprint={[2.6, 1.4]}>
-      <Tray power={p} />
+      {/* In at the tail (south), out at the head (north) to the worker, west to dead letters. */}
+      <Tray
+        power={p}
+        openings={[
+          { side: "s", at: 0.84 },
+          { side: "n", at: -0.8 },
+          { side: "w", at: 0 },
+        ]}
+      />
     </Pickable>
   );
 }
@@ -158,25 +217,46 @@ export function GpuQueue() {
   };
   return (
     <Pickable id="gpuQueue" position={POS.gpuQueue} labelAt={[-0.4, 0, 1.25]} footprint={[2.6, 1.4]}>
-      <Tray power={p} trim={C.violet} />
+      {/* In at the tail (west), out at the head (north) to the GPU, east to dead letters. */}
+      <Tray
+        power={p}
+        trim={C.violet}
+        openings={[
+          { side: "w", at: 0 },
+          { side: "n", at: 0.8 },
+          { side: "e", at: 0 },
+        ]}
+      />
     </Pickable>
   );
 }
 
-function Bin({ id, loc }: { id: "workflowDlq" | "gpuDlq"; loc: "workflowDlq" | "gpuDlq" }) {
+function Bin({ id, loc, depth, from }: { id: "workflowDlq" | "gpuDlq"; loc: "workflowDlq" | "gpuDlq"; depth: number; from: Side }) {
   const has: Num = () => (Object.values(W().jobs).some((j) => j.location === loc) ? 1 : 0);
   return (
-    <Pickable id={id} position={POS[id]} labelAt={[0, 0, 1.0]} footprint={[1.2, 0.9]}>
-      <Tray width={1.2} depth={0.9} power={() => 0.4} />
-      <Lamp position={[0, 0.2, 0.47]} size={[0.3, 0.1, 0.03]} on={has} color={C.amber} />
+    <Pickable id={id} position={POS[id]} labelAt={[0, 0, 1.0]} footprint={[1.2, depth]}>
+      <Tray width={1.2} depth={depth} power={() => 0.4} openings={[{ side: from, at: 0 }]} />
+      <Lamp position={[0, 0.2, depth / 2 + 0.02]} size={[0.3, 0.1, 0.03]} on={has} color={C.amber} />
     </Pickable>
   );
 }
-export const WorkflowDlq = () => <Bin id="workflowDlq" loc="workflowDlq" />;
-export const GpuDlq = () => <Bin id="gpuDlq" loc="gpuDlq" />;
+// Each bin sits against its queue's side wall; the dead-letter chute runs through both walls.
+export const WorkflowDlq = () => <Bin id="workflowDlq" loc="workflowDlq" depth={0.9} from="e" />;
+export const GpuDlq = () => <Bin id="gpuDlq" loc="gpuDlq" depth={0.8} from="w" />;
+
+/** Source time the most recent result landed in the archive (after riding the chute in). */
+function lastArchived(w: WorldState): number | undefined {
+  let best: number | undefined;
+  for (const j of Object.values(w.jobs)) {
+    if (j.location !== "crate") continue;
+    const a = arrivedAt(j, "crate", w.t);
+    if (a !== undefined && (best === undefined || a > best)) best = a;
+  }
+  return best;
+}
 
 export function Crate() {
-  const p: Num = () => managed(flash(W().pulses.crate, W().t, 2500));
+  const p: Num = () => managed(flash(lastArchived(W()), W().t, 2500));
   return (
     <Pickable id="s3" position={POS.s3} labelY={2.1} footprint={[2.6, 1.8]}>
       <group>
@@ -187,7 +267,7 @@ export function Crate() {
         <Block size={[0.1, 0.8, 1.8]} position={[1.25, 0.4, 0]} power={p} />
         <Block size={[2.6, 0.08, 1.0]} position={[0, 1.05, -1.2]} rotation={[0.9, 0, 0]} power={p} />
       </group>
-      <Lamp position={[0.9, 0.55, 0.91]} size={[0.3, 0.12, 0.03]} on={() => flash(W().pulses.crate, W().t, 3000)} />
+      <Lamp position={[0.9, 0.55, 0.91]} size={[0.3, 0.12, 0.03]} on={() => flash(lastArchived(W()), W().t, 3000)} />
     </Pickable>
   );
 }
@@ -200,7 +280,7 @@ export function Tower() {
   return (
     <Pickable id="controlPlane" position={POS.controlPlane} labelY={4.6} footprint={[2, 2]}>
       <Block size={[2, 3, 2]} position={[0, 1.5, 0]} power={p} />
-      <Block size={[1.2, 0.12, 1.2]} position={[0, 3.06, 0]} power={p} />
+      <Block size={[1.8, 0.12, 0.8]} position={[0, 3.06, 0]} power={p} />
       <Lamp position={[0, 2.2, 1.01]} size={[1.1, 0.6, 0.02]} on={() => bootProgress(W())} color={C.aqua} />
       {strips.map((i) => (
         <Lamp
@@ -216,7 +296,8 @@ export function Tower() {
   );
 }
 
-const POD_NAMES = ["orchestrator", "worker", "litellm"];
+// The worker pod sits at the front-right corner, next to the lift that brings it tickets.
+const POD_NAMES = ["orchestrator", "litellm", "worker"];
 export function Pods() {
   const refs = useRef<(THREE.Group | null)[]>([]);
   useFrame((_, dt) => {
@@ -224,7 +305,8 @@ export function Pods() {
     const up = servicesUp(w) ? 1 : 0;
     refs.current.forEach((g, i) => {
       if (!g) return;
-      const target = up ? 0.3 : -0.25;
+      // Up: resting on the roof cap. Down: sunk into the tower.
+      const target = up ? 0.12 : -0.25;
       g.position.y = approach(g.position.y, target, 6 - i, dt);
       g.scale.setScalar(approach(g.scale.x, up ? 1 : 0.6, 6, dt));
     });
@@ -274,7 +356,7 @@ export function Laya() {
       <Block size={[0.24, 1.5, 0.3]} position={[-0.75, 0.95, 0]} power={p} />
       <Block size={[0.24, 1.5, 0.3]} position={[0.75, 0.95, 0]} power={p} />
       <Block size={[1.74, 0.22, 0.34]} position={[0, 1.8, 0]} power={p} />
-      <Lamp position={[0, 1.0, 0]} size={[1.24, 1.3, 0.03]} on={() => (jobAt(W(), "laya") ? 0.85 : 0)} color={beamColor} offColor={C.side} />
+      <Lamp position={[0, 0.95, 0]} size={[1.24, 1.5, 0.03]} on={() => (jobAt(W(), "laya") ? 0.85 : 0)} color={beamColor} offColor={C.side} />
     </Pickable>
   );
 }
@@ -472,39 +554,10 @@ export function Platforms() {
       <group position={[-POS.vpc[0], 0, -POS.vpc[2]]}>
         <Block size={PLATFORMS.a.size} position={[PLATFORMS.a.center[0], PLATFORM_Y / 2, PLATFORMS.a.center[2]]} power={aEdge} dim={C.platform} lit={C.platform} edgeDim={C.deskEdge} edgeLit={C.aqua} />
         <Block size={PLATFORMS.c.size} position={[PLATFORMS.c.center[0], PLATFORM_Y / 2, PLATFORMS.c.center[2]]} power={cEdge} dim={C.platform} lit={C.platform} edgeDim={C.deskEdge} edgeLit={C.violet} />
-        <Block size={[2.6, 0.2, 1.2]} position={[1.6, 0.1, -4.4]} power={() => (W().gpu.joined ? 1 : 0)} dim={C.platform} lit={C.platform} edgeDim={C.deskEdge} edgeLit={C.violet} />
+        {/* Network bridge between the zones, flush with both platforms. */}
+        <Block size={[PLATFORMS.c.center[0] - PLATFORMS.c.size[0] / 2 - (PLATFORMS.a.center[0] + PLATFORMS.a.size[0] / 2), PLATFORM_Y, 1.2]} position={[1.7, PLATFORM_Y / 2, -4.6]} power={() => (W().gpu.joined ? 1 : 0)} dim={C.platform} lit={C.platform} edgeDim={C.deskEdge} edgeLit={C.violet} />
       </group>
     </Pickable>
-  );
-}
-
-/** Engraved power lines on the desk: lit when the zone they feed is powered. */
-export function Rails() {
-  const line = (from: [number, number], to: [number, number], on: Num, color: string, key: string) => {
-    const dx = to[0] - from[0];
-    const dz = to[1] - from[1];
-    const len = Math.hypot(dx, dz);
-    const ang = Math.atan2(-dz, dx);
-    return (
-      <Lamp
-        key={key}
-        position={[(from[0] + to[0]) / 2, 0.015, (from[1] + to[1]) / 2]}
-        rotation={[0, ang, 0]}
-        size={[len, 0.02, 0.06]}
-        on={on}
-        color={color}
-        offColor={C.deskEdge}
-      />
-    );
-  };
-  const cp: Num = () => (cpUp(W()) ? 0.8 : 0);
-  const gpu: Num = () => (gpuPresent(W()) ? 0.8 : 0);
-  return (
-    <group>
-      {line([-3, 4.4], [-3, -1.2], cp, C.aqua, "a1")}
-      {line([-3, -1.2], [-5.4, -1.2], cp, C.aqua, "a2")}
-      {line([3.9, -1.2], [6.6, -1.2], gpu, C.violet, "c1")}
-    </group>
   );
 }
 

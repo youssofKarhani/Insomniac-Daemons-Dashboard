@@ -60,6 +60,12 @@ export function namedPerQueue(jobs: Record<string, JobView>): Record<QueueName, 
 
 export type Outcome ="completed" | "rejected" | "needs_review" | "decided" | "dlq";
 
+/** One move of a job's ticket: where it went and the source time of the event that moved it. */
+export interface Hop {
+  to: JobLocation;
+  at: number;
+}
+
 export interface JobView {
   id: string;
   jobType: string;
@@ -76,6 +82,8 @@ export interface JobView {
   finishedAt?: number;
   /** Order within its location, for stacking tickets. */
   seq: number;
+  /** Every move so far, oldest first. The scene replays them along the belts. */
+  hops: Hop[];
 }
 
 export interface WorldState {
@@ -142,8 +150,8 @@ export function worldAt(w: WorldState, now: number): WorldState {
   return w.t === now ? w : { ...w, t: now };
 }
 
-/** Pulses and travelling signals finish within this long after their event. */
-export const MOTION_AFTER_EVENT_MS = 5_000;
+/** Pulses, travelling signals and tickets riding the belts finish within this long after their event. */
+export const MOTION_AFTER_EVENT_MS = 10_000;
 
 /**
  * True when nothing in the scene moves with time: everything is off and the last event and

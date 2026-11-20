@@ -27,6 +27,8 @@ export interface Timeline {
 export const DEFAULT_MAX_GAP_MS = 6_000;
 const LEAD_MS = 1_500;
 const TAIL_MS = 3_000;
+/** Motion set off by an event (belts, cable pulses) finishes within this long; never fast-forward it. */
+export const REALTIME_AFTER_EVENT_MS = 5_000;
 
 export function buildTimeline(raw: readonly TwinEvent[], maxGapMs = DEFAULT_MAX_GAP_MS): Timeline {
   const events = sortEvents(raw);
@@ -43,10 +45,18 @@ export function buildTimeline(raw: readonly TwinEvent[], maxGapMs = DEFAULT_MAX_
     const b = marks[i];
     if (b <= a) continue;
     const gap = b - a;
-    const compressed = gap > maxGapMs;
-    const len = compressed ? maxGapMs : gap;
-    segments.push({ srcStart: a, srcEnd: b, playStart: play, playEnd: play + len, compressed });
-    play += len;
+    if (gap <= maxGapMs + REALTIME_AFTER_EVENT_MS) {
+      segments.push({ srcStart: a, srcEnd: b, playStart: play, playEnd: play + gap, compressed: false });
+      play += gap;
+      continue;
+    }
+    // A long wait: the first seconds play at real speed so tickets and pulses set off by the
+    // event finish their journeys; only the quiet remainder is squeezed.
+    const mid = a + REALTIME_AFTER_EVENT_MS;
+    segments.push({ srcStart: a, srcEnd: mid, playStart: play, playEnd: play + REALTIME_AFTER_EVENT_MS, compressed: false });
+    play += REALTIME_AFTER_EVENT_MS;
+    segments.push({ srcStart: mid, srcEnd: b, playStart: play, playEnd: play + maxGapMs, compressed: true });
+    play += maxGapMs;
   }
   return { events, segments, srcStart, srcEnd, playDuration: play };
 }
