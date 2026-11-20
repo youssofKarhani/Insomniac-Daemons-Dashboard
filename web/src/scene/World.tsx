@@ -45,21 +45,25 @@ function deskToWorld(p: [number, number, number]) {
   return new THREE.Vector3(...p).applyAxisAngle(AXIS, DESK_ROTATION);
 }
 
-/** Ambient light rises when the control plane is awake. */
+/**
+ * Lighting for the two-tone look of the reference renders: a strong key from almost straight
+ * above (bright tops), a little toward the viewer (mid-tone fronts), little on the right
+ * faces (deep sides), over a low ambient. It rises when the control plane is awake.
+ */
 function Lights() {
   const amb = useRef<THREE.AmbientLight>(null);
   const key = useRef<THREE.DirectionalLight>(null);
   useFrame((_, dt) => {
     const w = W();
     const awake = w.cp.state === "stopped" ? 0 : w.cp.state === "running" ? 1 : 0.6;
-    if (amb.current) amb.current.intensity = approach(amb.current.intensity, 0.75 + 0.55 * awake, 1.5, dt);
-    if (key.current) key.current.intensity = approach(key.current.intensity, 1.3 + 0.9 * awake, 1.5, dt);
+    if (amb.current) amb.current.intensity = approach(amb.current.intensity, 0.5 + 0.25 * awake, 1.5, dt);
+    if (key.current) key.current.intensity = approach(key.current.intensity, 1.5 + 0.5 * awake, 1.5, dt);
   });
   return (
     <>
-      <ambientLight ref={amb} intensity={0.75} color="#b9b8ff" />
-      <directionalLight ref={key} position={[4, 14, 6]} intensity={1.3} color="#ffffff" />
-      <directionalLight position={[-8, 6, -4]} intensity={0.25} color="#7f8cff" />
+      <ambientLight ref={amb} intensity={0.5} color="#b9b8ff" />
+      <directionalLight ref={key} position={[2, 14, 5]} intensity={1.5} color="#ffffff" />
+      <directionalLight position={[-8, 6, -4]} intensity={0.2} color="#7f8cff" />
     </>
   );
 }

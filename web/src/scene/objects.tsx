@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { CONFIG, SAMPLE } from "../model/timings";
 import { useTwin } from "../store";
 import type { JobLocation, WorldState } from "../model/state";
-import { Block, C, Lamp, Pickable, ProgressRing, RM, W, approach, clamp01, flash, type Num } from "./kit";
+import { Block, Bolt, C, Lamp, Pickable, ProgressRing, RM, W, approach, clamp01, flash, type Num } from "./kit";
 import { PLATFORMS, POS, PLATFORM_Y } from "./layout";
 import { arrivedAt, restingAt } from "./ticketPath";
 import { CARRY_BOTTOM, CASSETTE_H, LUG_H, RAIL_Y, SEAT_BOTTOM, X_BAY, gantryAt, newGantryPose } from "./gantry";
@@ -56,14 +56,38 @@ export function Clock() {
     <Pickable id="clock" position={POS.clock} labelAt={[-0.2, 0, 1.3]} footprint={[1.4, 1.2]}>
       <Block size={[1.4, 0.35, 1.2]} position={[0, 0.175, 0]} power={p} />
       <Block size={[0.25, 0.7, 0.25]} position={[0, 0.7, 0]} power={p} />
+      <Bolt position={[0.71, 0.18, 0.15]} rotation={[0, Math.PI / 2, 0]} />
       <mesh position={[0, 1.55, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.62, 0.62, 0.16, 40]} />
         <meshLambertMaterial color={C.lav} />
       </mesh>
+      {/* Dial face, rim and the four quarter marks. */}
+      <mesh position={[0, 1.55, 0.082]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.54, 0.54, 0.01, 40]} />
+        <meshBasicMaterial color={"#1a1d52"} />
+      </mesh>
+      <mesh position={[0, 1.55, 0.085]}>
+        <torusGeometry args={[0.56, 0.03, 8, 48]} />
+        <meshBasicMaterial color={C.lavEdge} />
+      </mesh>
+      {[0, 1, 2, 3].map((k) => (
+        <mesh key={k} position={[0.42 * Math.sin((k * Math.PI) / 2), 1.55 + 0.42 * Math.cos((k * Math.PI) / 2), 0.09]} rotation={[0, 0, (-k * Math.PI) / 2]}>
+          <boxGeometry args={[0.04, 0.12, 0.01]} />
+          <meshBasicMaterial color={C.aqua} />
+        </mesh>
+      ))}
+      <mesh position={[0.42, 2.02, 0]} rotation={[0, 0, -0.7]}>
+        <boxGeometry args={[0.2, 0.12, 0.2]} />
+        <meshBasicMaterial color={C.violet} />
+      </mesh>
       <group ref={hand} position={[0, 1.55, 0.1]}>
-        <mesh position={[0, 0.24, 0]}>
-          <boxGeometry args={[0.06, 0.48, 0.04]} />
-          <meshBasicMaterial color={C.side} />
+        <mesh position={[0, 0.2, 0]}>
+          <boxGeometry args={[0.05, 0.4, 0.02]} />
+          <meshBasicMaterial color={C.aqua} />
+        </mesh>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.055, 0.055, 0.03, 16]} />
+          <meshBasicMaterial color={C.aqua} />
         </mesh>
       </group>
       <Lamp position={[0.45, 0.36, 0.61]} on={() => flash(W().pulses.clock, W().t, 4000)} />
@@ -81,6 +105,8 @@ export function Gateway() {
       <Block size={[0.45, 1.9, 0.45]} position={[-0.85, 1.7, 0]} power={p} />
       <Block size={[0.45, 1.9, 0.45]} position={[0.85, 1.7, 0]} power={p} />
       <Block size={[2.15, 0.45, 0.55]} position={[0, 2.85, 0]} power={p} />
+      <Bolt position={[-1.0, 0.42, 0.81]} />
+      <Bolt position={[1.0, 0.42, 0.81]} />
       {/* Slot the job ticket rises out of. */}
       <mesh position={[0, 0.752, 0]}>
         <boxGeometry args={[0.9, 0.004, 0.62]} />
@@ -112,7 +138,23 @@ export function Lambda() {
   return (
     <Pickable id="lambda" position={POS.lambda} labelY={2.6} footprint={[1.6, 1.1]}>
       <Block size={[1.6, 0.4, 1.1]} position={[0, 0.2, 0]} power={p} />
+      <Bolt position={[-0.62, 0.405, 0.38]} rotation={[-Math.PI / 2, 0, 0]} r={0.07} />
+      <Bolt position={[0.62, 0.405, -0.38]} rotation={[-Math.PI / 2, 0, 0]} r={0.07} />
+      <Bolt position={[0.62, 0.405, 0.38]} rotation={[-Math.PI / 2, 0, 0]} r={0.07} />
+      {/* Foot pads under the post and the contact. */}
+      <mesh position={[-0.5, 0.42, 0]}>
+        <boxGeometry args={[0.46, 0.04, 0.46]} />
+        <meshBasicMaterial color={"#1a1d52"} />
+      </mesh>
+      <mesh position={[0.55, 0.42, 0]}>
+        <boxGeometry args={[0.38, 0.04, 0.38]} />
+        <meshBasicMaterial color={"#1a1d52"} />
+      </mesh>
       <Block size={[0.3, 1.3, 0.3]} position={[-0.5, 1.05, 0]} power={p} />
+      <mesh position={[-0.5, 1.65, 0.17]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.09, 0.09, 0.06, 16]} />
+        <meshBasicMaterial color={"#1a1d52"} />
+      </mesh>
       <group ref={arm} position={[-0.5, 1.65, 0]}>
         <Block size={[1.05, 0.12, 0.14]} position={[0.52, 0, 0]} power={p} />
       </group>
@@ -128,6 +170,30 @@ export function Ssm() {
       <Block size={[1.3, 0.35, 1]} position={[0, 0.175, 0]} power={() => 0.45} />
       <Block size={[1.1, 0.8, 0.14]} position={[0, 0.85, -0.2]} rotation={[-0.25, 0, 0]} power={() => 0.45} />
       <Lamp position={[0, 0.86, -0.12]} rotation={[-0.25, 0, 0]} size={[0.9, 0.55, 0.02]} on={() => (W().ssmOpen ? 1 : 0)} color={C.violet} />
+      {/* Prompt on the screen. */}
+      <group position={[0, 0.86, -0.1]} rotation={[-0.25, 0, 0]}>
+        <mesh position={[-0.3, 0.13, 0.012]} rotation={[0, 0, -0.6]}>
+          <boxGeometry args={[0.1, 0.025, 0.005]} />
+          <meshBasicMaterial color={C.aqua} />
+        </mesh>
+        <mesh position={[-0.3, 0.07, 0.012]} rotation={[0, 0, 0.6]}>
+          <boxGeometry args={[0.1, 0.025, 0.005]} />
+          <meshBasicMaterial color={C.aqua} />
+        </mesh>
+        <mesh position={[-0.17, 0.05, 0.012]}>
+          <boxGeometry args={[0.1, 0.025, 0.005]} />
+          <meshBasicMaterial color={C.aqua} />
+        </mesh>
+      </group>
+      {/* Keyboard. */}
+      <Block size={[1.0, 0.06, 0.42]} position={[0, 0.38, 0.22]} power={() => 0.45} />
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((k) => (
+        <mesh key={k} position={[-0.33 + (k % 4) * 0.22, 0.42, 0.13 + Math.floor(k / 4) * 0.18]}>
+          <boxGeometry args={[0.15, 0.025, 0.12]} />
+          <meshBasicMaterial color={"#1a1d52"} />
+        </mesh>
+      ))}
+      <Bolt position={[0.66, 0.18, 0.2]} rotation={[0, Math.PI / 2, 0]} />
     </Pickable>
   );
 }
@@ -269,6 +335,7 @@ export function Crate() {
         <Block size={[2.6, 0.08, 1.0]} position={[0, 1.05, -1.2]} rotation={[0.9, 0, 0]} power={p} />
       </group>
       <Lamp position={[0.9, 0.55, 0.91]} size={[0.3, 0.12, 0.03]} on={() => flash(lastArchived(W()), W().t, 3000)} />
+      <Bolt position={[1.31, 0.4, 0.45]} rotation={[0, Math.PI / 2, 0]} />
     </Pickable>
   );
 }
@@ -281,8 +348,15 @@ export function Tower() {
   return (
     <Pickable id="controlPlane" position={POS.controlPlane} labelY={4.6} footprint={[2, 2]}>
       <Block size={[2, 3, 2]} position={[0, 1.5, 0]} power={p} />
-      <Block size={[1.8, 0.12, 0.8]} position={[0, 3.06, 0]} power={p} />
       <Lamp position={[0, 2.2, 1.01]} size={[1.1, 0.6, 0.02]} on={() => bootProgress(W())} color={C.aqua} />
+      {/* Power button and vent stripes on the front. */}
+      <Bolt position={[0.72, 2.78, 1.01]} r={0.1} />
+      {[0, 1, 2].map((k) => (
+        <mesh key={k} position={[-0.25, 1.3 - k * 0.16, 1.006]}>
+          <boxGeometry args={[0.9, 0.07, 0.01]} />
+          <meshBasicMaterial color={C.lav} />
+        </mesh>
+      ))}
       {strips.map((i) => (
         <Lamp
           key={i}
@@ -299,33 +373,51 @@ export function Tower() {
 
 // The worker pod sits at the front-right corner, next to the lift that brings it tickets.
 const POD_NAMES = ["orchestrator", "litellm", "worker"];
+/** Housing on the tower roof the pods live in: they rise out through a hatch when started. */
+const HOUSING = { w: 1.7, d: 0.8, h: 0.5, wall: 0.06 };
+
 export function Pods() {
-  const refs = useRef<(THREE.Group | null)[]>([]);
+  const plate = useRef<THREE.Group>(null);
+  const hatch = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
-    const w = W();
-    const up = servicesUp(w) ? 1 : 0;
-    refs.current.forEach((g, i) => {
-      if (!g) return;
-      // Up: resting on the roof cap. Down: sunk into the tower.
-      const target = up ? 0.12 : -0.25;
-      g.position.y = approach(g.position.y, target, 6 - i, dt);
-      g.scale.setScalar(approach(g.scale.x, up ? 1 : 0.6, 6, dt));
-    });
+    const up = servicesUp(W());
+    const h = hatch.current;
+    const pl = plate.current;
+    if (!h || !pl) return;
+    // Opening: hatch first, then the plate rises. Closing: plate first, then the hatch.
+    const open = -Math.PI / 2;
+    const hatchTarget = up || pl.position.y > 0.03 ? open : 0;
+    h.rotation.x = approach(h.rotation.x, hatchTarget, 5, dt);
+    const plateTarget = up && h.rotation.x < open * 0.85 ? HOUSING.h - 0.02 : 0;
+    pl.position.y = approach(pl.position.y, plateTarget, 4, dt);
   });
   const p: Num = () => {
     const w = W();
     return servicesUp(w) ? breathe(w.t, w.cp.podsConfidence === "inferred") : 0;
   };
+  const hp: Num = () => (cpUp(W()) ? 0.7 : 0.3);
+  const { w, d, h, wall } = HOUSING;
   return (
-    <Pickable id="pods" position={POS.pods} labelY={1.5} footprint={[1.6, 1.2]}>
-      {POD_NAMES.map((n, i) => (
-        <group key={n} ref={(g) => (refs.current[i] = g)} position={[(i - 1) * 0.55, -0.25, 0]}>
-          <Block size={[0.45, 0.45, 0.6]} position={[0, 0.22, 0]} power={p} />
-        </group>
-      ))}
+    <Pickable id="pods" position={POS.pods} labelY={1.5} footprint={[1.6, 1.2]} shadow={false}>
+      <Block size={[w, h, wall]} position={[0, h / 2, -d / 2 + wall / 2]} power={hp} />
+      <Block size={[w, h, wall]} position={[0, h / 2, d / 2 - wall / 2]} power={hp} />
+      <Block size={[wall, h, d]} position={[-w / 2 + wall / 2, h / 2, 0]} power={hp} />
+      <Block size={[wall, h, d]} position={[w / 2 - wall / 2, h / 2, 0]} power={hp} />
+      {/* Elevator plate carrying the three pods. */}
+      <group ref={plate}>
+        <Block size={[w - wall * 2, 0.04, d - wall * 2]} position={[0, 0.02, 0]} power={hp} />
+        {POD_NAMES.map((n, i) => (
+          <Block key={n} size={[0.45, 0.42, 0.6]} position={[(i - 1) * 0.55, 0.25, 0]} power={p} />
+        ))}
+      </group>
+      {/* Hatch hinged at the back edge: lies flat when closed, stands up when open. */}
+      <group ref={hatch} position={[0, h, -d / 2]}>
+        <Block size={[w, 0.05, d]} position={[0, 0.025, d / 2]} power={hp} />
+      </group>
     </Pickable>
   );
 }
+
 
 export function Watchdog() {
   const progress: Num = () => {
@@ -377,7 +469,7 @@ function gantryNow() {
 }
 
 /** Rail ends and supports, desk coordinates. */
-const RAIL_FROM = -5.55;
+const RAIL_FROM = -5.5;
 const BAY = { x0: 10.3, x1: 12.7, z0: -5.5, z1: -3.7, top: PLATFORM_Y + 3.6 };
 const RAIL_TO = BAY.x1;
 const PORTALS = [-1.0, 4.0];
@@ -550,7 +642,7 @@ export function GpuNode() {
     if (core.current && coreMat.current) {
       const fill = loadProgress(w);
       core.current.scale.x = approach(core.current.scale.x, Math.max(0.02, fill), 3, dt);
-      core.current.position.x = -0.8 * (1 - core.current.scale.x);
+      core.current.position.x = 0.1 - 0.8 * (1 - core.current.scale.x);
       const generating = !!jobAt(w, "core");
       const pulse = generating ? 0.65 + 0.35 * Math.sin(w.t / 140) : fill > 0 ? breathe(w.t, w.vllm.confidence === "inferred") * 0.8 : 0;
       coreMat.current.color.set(C.off).lerp(VIOLET, pulse);
@@ -564,13 +656,49 @@ export function GpuNode() {
       <Block size={[2.8, 0.25, 0.14]} position={[0, 0.5, -0.82]} power={cradleP} />
       <Block size={[2.8, 0.25, 0.14]} position={[0, 0.5, 0.82]} power={cradleP} />
       <group ref={cassette} position={[X_BAY - POS.gpuNode[0], CARRY_BOTTOM - POS.gpuNode[1], 0]} visible={false}>
-        <Block size={[2.3, 1.15, 1.4]} position={[0, 0.575, 0]} power={cassP} edgeLit={C.violet} />
-        <Block size={[1.9, 0.75, 0.04]} position={[0, 0.575, 0.7]} power={() => 0} dim={C.side} edgeDim={C.violet} />
-        <mesh ref={core} position={[0, 0.575, 0.72]}>
-          <boxGeometry args={[1.6, 0.4, 0.03]} />
+        {/* Case: open at the front, on four feet that stand on the cradle base. */}
+        <Block size={[2.3, 0.08, 1.4]} position={[0, 0.04, 0]} power={cassP} edgeLit={C.violet} />
+        <Block size={[2.3, 0.08, 1.4]} position={[0, CASSETTE_H - 0.04, 0]} power={cassP} edgeLit={C.violet} />
+        <Block size={[2.3, CASSETTE_H, 0.06]} position={[0, CASSETTE_H / 2, -0.67]} power={cassP} edgeLit={C.violet} />
+        <Block size={[0.08, CASSETTE_H, 1.4]} position={[-1.11, CASSETTE_H / 2, 0]} power={cassP} edgeLit={C.violet} />
+        <Block size={[0.08, CASSETTE_H, 1.4]} position={[1.11, CASSETTE_H / 2, 0]} power={cassP} edgeLit={C.violet} />
+        {[-1, 1].flatMap((sx) =>
+          [-1, 1].map((sz) => (
+            <Block key={`${sx}${sz}`} size={[0.18, 0.15, 0.18]} position={[sx * 0.95, -0.075, sz * 0.55]} power={cassP} />
+          )),
+        )}
+        {/* The GPU card: board, edge connector, bracket, and a finned heatsink. */}
+        <mesh position={[0.05, 0.5, -0.05]}>
+          <boxGeometry args={[1.75, 0.5, 0.03]} />
+          <meshBasicMaterial color="#1f5a52" />
+        </mesh>
+        <mesh position={[0.1, 0.13, 0.0]}>
+          <boxGeometry args={[1.0, 0.07, 0.16]} />
+          <meshBasicMaterial color={"#1a1d52"} />
+        </mesh>
+        <Block size={[0.06, 0.78, 0.26]} position={[-0.86, 0.55, 0.08]} power={cassP} />
+        <Block size={[1.6, 0.44, 0.22]} position={[0.1, 0.62, 0.1]} power={() => 0.35} edgeLit={C.lavEdge} />
+        {[0, 1, 2, 3, 4, 5].map((k) => (
+          <mesh key={k} position={[0.1, 0.44 + k * 0.07 + (k > 2 ? 0.08 : 0), 0.215]}>
+            <boxGeometry args={[1.56, 0.014, 0.01]} />
+            <meshBasicMaterial color={C.lavEdge} />
+          </mesh>
+        ))}
+        {/* Model core: the glowing strip along the heatsink fills as the model loads. */}
+        <mesh ref={core} position={[0.1, 0.65, 0.22]}>
+          <boxGeometry args={[1.6, 0.07, 0.02]} />
           <meshBasicMaterial ref={coreMat} color={C.off} toneMapped={false} />
         </mesh>
-        <Lamp position={[0.95, 0.2, 0.71]} size={[0.14, 0.14, 0.02]} on={() => (W().gpu.spotWarningAt ? 1 : 0)} color={C.amber} />
+        {/* Ports and the Spot warning light on the side. */}
+        <mesh position={[1.16, 0.72, 0.25]}>
+          <boxGeometry args={[0.02, 0.1, 0.16]} />
+          <meshBasicMaterial color={"#1a1d52"} />
+        </mesh>
+        <mesh position={[1.16, 0.48, 0.25]}>
+          <boxGeometry args={[0.02, 0.08, 0.2]} />
+          <meshBasicMaterial color={"#1a1d52"} />
+        </mesh>
+        <Lamp position={[1.16, 0.95, 0.45]} size={[0.02, 0.12, 0.12]} on={() => (W().gpu.spotWarningAt ? 1 : 0)} color={C.amber} />
         {/* Lifting lug the hook bar engages. */}
         <Block size={[1.0, LUG_H, 0.2]} position={[0, CASSETTE_H + LUG_H / 2, 0]} power={cassP} />
       </group>
@@ -659,6 +787,18 @@ export function ModelVolume() {
         <Block size={[1.1, 0.95, 1.5]} position={[0, 0.475, 0]} power={() => (W().gpu.ebsAttached ? 1 : 0.55)} dim="#2c3474" lit="#5b56c4" />
         <Lamp position={[-0.2, 0.96, -0.3]} size={[0.5, 0.03, 0.22]} on={() => (loadProgress(W()) > 0 ? 1 : 0.15)} color={C.violet} />
         <Lamp position={[-0.2, 0.96, 0.3]} size={[0.5, 0.03, 0.22]} on={() => 0.15} color={C.violet} />
+        {/* Front: a grid of storage slots and a pull handle. */}
+        {Array.from({ length: 20 }, (_, k) => (
+          <mesh key={k} position={[-0.4 + (k % 5) * 0.2, 0.2 + Math.floor(k / 5) * 0.16, 0.755]}>
+            <boxGeometry args={[0.17, 0.12, 0.01]} />
+            <meshBasicMaterial color={k % 5 === 1 || k % 5 === 3 ? "#5b56c4" : "#262b6a"} />
+          </mesh>
+        ))}
+        <mesh position={[0, 0.86, 0.77]}>
+          <boxGeometry args={[0.36, 0.05, 0.04]} />
+          <meshBasicMaterial color={"#1a1d52"} />
+        </mesh>
+        <Bolt position={[0.56, 0.3, 0.3]} rotation={[0, Math.PI / 2, 0]} />
       </group>
     </Pickable>
   );

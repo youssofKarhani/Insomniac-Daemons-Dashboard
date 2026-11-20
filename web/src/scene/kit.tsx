@@ -201,6 +201,51 @@ export function ProgressRing({
   );
 }
 
+let shadowTex: THREE.Texture | null = null;
+/** A soft-edged dark rectangle, drawn once and shared by every contact shadow. */
+function softShadow() {
+  if (shadowTex) return shadowTex;
+  const n = 64;
+  const c = document.createElement("canvas");
+  c.width = c.height = n;
+  const g = c.getContext("2d")!;
+  const img = g.createImageData(n, n);
+  for (let y = 0; y < n; y += 1) {
+    for (let x = 0; x < n; x += 1) {
+      // Distance outside an inner rectangle, faded over the outer band.
+      const dx = Math.max(0, Math.abs(x + 0.5 - n / 2) - n * 0.28) / (n * 0.22);
+      const dy = Math.max(0, Math.abs(y + 0.5 - n / 2) - n * 0.28) / (n * 0.22);
+      const a = Math.max(0, 1 - Math.hypot(dx, dy));
+      const i = (y * n + x) * 4;
+      img.data[i + 3] = Math.round(255 * a * a * (3 - 2 * a));
+    }
+  }
+  g.putImageData(img, 0, 0);
+  shadowTex = new THREE.CanvasTexture(c);
+  return shadowTex;
+}
+
+/** Soft contact shadow under an object, offset toward the viewer like the reference renders. */
+export function ContactShadow({ size, y = 0.004 }: { size: [number, number]; y?: number }) {
+  const tex = useMemo(softShadow, []);
+  return (
+    <mesh position={[0.08, y, 0.2]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={-1}>
+      <planeGeometry args={[size[0] + 0.9, size[1] + 0.9]} />
+      <meshBasicMaterial map={tex} color="#05081c" transparent opacity={0.6} depthWrite={false} />
+    </mesh>
+  );
+}
+
+/** Small ring bolt, as on the bases in the reference renders. Faces +z unless rotated. */
+export function Bolt({ position, rotation, r = 0.08 }: { position: [number, number, number]; rotation?: [number, number, number]; r?: number }) {
+  return (
+    <mesh position={position} rotation={rotation}>
+      <torusGeometry args={[r, r * 0.3, 8, 20]} />
+      <meshBasicMaterial color={C.lav} />
+    </mesh>
+  );
+}
+
 /** Wraps an object so it can be hovered, clicked and labelled. */
 export function Pickable({
   id,
@@ -209,6 +254,7 @@ export function Pickable({
   footprint = [2, 2],
   showLabel = true,
   labelAt,
+  shadow = true,
   children,
 }: {
   id: ObjectId;
@@ -219,6 +265,8 @@ export function Pickable({
   footprint?: [number, number];
   /** False hides the always-on label (hover and selection still show it). */
   showLabel?: boolean;
+  /** False for objects with no footprint of their own (overhead or invisible handles). */
+  shadow?: boolean;
   children: ReactNode;
 }) {
   const [hover, setHover] = useState(false);
@@ -246,6 +294,7 @@ export function Pickable({
   };
   return (
     <group position={position} onPointerOver={onOver} onPointerOut={onOut} onClick={onClick}>
+      {shadow && footprint[0] > 0.2 && footprint[1] > 0.2 && <ContactShadow size={footprint} />}
       {children}
       <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[footprint[0] + 0.5, footprint[1] + 0.5]} />
