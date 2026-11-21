@@ -18,7 +18,7 @@ variable "platform_prefix" {
 variable "allowed_origins" {
   description = "Origins allowed to fetch the public JSON (the site, plus local dev)."
   type        = list(string)
-  default     = ["http://localhost:5173", "http://localhost:4173"]
+  default     = ["https://insomniac-daemons-dashboard-production.up.railway.app", "http://localhost:5173", "http://localhost:4173"]
 }
 
 variable "gpu_instance_type" {
