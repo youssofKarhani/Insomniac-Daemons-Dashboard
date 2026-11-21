@@ -1,16 +1,15 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import type { TwinEvent } from "../model/events";
 import type { JobView } from "../model/state";
 import { lastIndexAt } from "../model/replay";
 import { ticketsByLocation, ticketTone, type TicketTone } from "../model/tickets";
 import { useTwin } from "../store";
 import { C, RM, W, approach } from "./kit";
 import { ticketDrawn, ticketOffset } from "./layout";
-import { CABLE_EDGES, along, cableRoute, type CableNode, type Route } from "./routes";
+import { CABLE_EDGES, along, type Route } from "./routes";
 import { newPose, poseAt, restingAt } from "./ticketPath";
-import { ARM_PULSE_SPEED } from "./gantry";
+import { pulseFor, routeOf, PULSE_SPEED } from "./signals";
 
 const STAMP: Record<TicketTone, string> = {
   plain: C.ticket,
@@ -103,55 +102,6 @@ export function Tickets() {
 
 // ---- Signals: light pulses travelling along the cables ---------------------
 
-interface PulseSpec {
-  stops: readonly CableNode[];
-  color: string;
-  /** Desk units per second; defaults to PULSE_SPEED. */
-  speed?: number;
-}
-
-/** Which events send a pulse, and along which cables. Purely a function of the event, so seeking is safe. */
-function pulseFor(e: TwinEvent): PulseSpec | null {
-  switch (e.kind) {
-    case "ingress.request":
-      return { stops: ["net", "lambda"], color: C.lavEdge };
-    case "ingress.prewarm":
-      return { stops: ["clock", "lambda"], color: C.lavEdge };
-    case "cp.state":
-      if (e.data.state === "pending") return { stops: ["lambda", "tower"], color: C.aqua };
-      if (e.data.state === "stopping") return { stops: ["wdBack", "tower"], color: C.lav };
-      return null;
-    case "keda.scale":
-      return e.data.replicas === 1 ? { stops: ["gqSensor", "keda"], color: C.violet } : null;
-    case "asg.desired":
-      // The autoscaler's order runs along the arm's rail to the carriage, which then moves.
-      return { stops: ["tower", "armBay"], color: C.violet, speed: ARM_PULSE_SPEED };
-    case "node.joined":
-      return { stops: ["gpu", "tower"], color: C.violet };
-    case "ebs.attached":
-      return { stops: ["drive", "gpu"], color: C.violet };
-    case "guard.latch":
-      // Locking follows the tower stopping: EventBridge tells the wake switch, which locks the guard.
-      return e.data.locked
-        ? { stops: ["tower", "lambda", "guard"], color: C.amber }
-        : { stops: ["lambda", "guard"], color: C.amber };
-    case "ssm.session":
-      return e.data.open ? { stops: ["ssmBack", "tower"], color: C.violet } : null;
-    default:
-      return null;
-  }
-}
-
-const routeCache = new Map<string, Route>();
-function routeOf(stops: readonly CableNode[]): Route {
-  const key = stops.join(">");
-  let r = routeCache.get(key);
-  if (!r) routeCache.set(key, (r = cableRoute(stops)));
-  return r;
-}
-
-/** Pulse speed along a cable, desk units per second of source time. */
-const PULSE_SPEED = 7;
 const LOOKBACK_MS = 8_000;
 const POOL = 18;
 const TRAIL = 4;
@@ -183,12 +133,12 @@ export function Signals() {
     m.visible = true;
   };
   useFrame(() => {
-    const { timeline, reducedMotion } = useTwin.getState();
+    const { history, reducedMotion } = useTwin.getState();
     const world = W();
     let used = 0;
     if (!reducedMotion && !RM()) {
       const t = world.t;
-      const ev = timeline.events;
+      const ev = history;
       // Start at the playhead: later events have not happened yet.
       for (let i = lastIndexAt(ev, t); i >= 0 && used < POOL; i -= 1) {
         const e = ev[i];

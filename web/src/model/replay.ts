@@ -26,7 +26,7 @@ export interface Timeline {
 
 export const DEFAULT_MAX_GAP_MS = 6_000;
 const LEAD_MS = 1_500;
-const TAIL_MS = 3_000;
+const TAIL_MS = 8_000; // Let the final cable signal and its receiving action finish.
 /** Motion set off by an event (belts, cable pulses) finishes within this long; never fast-forward it. */
 export const REALTIME_AFTER_EVENT_MS = 8_000;
 

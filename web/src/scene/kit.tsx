@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { OBJECTS, type ObjectId } from "../content/components";
 import { worldAt, type WorldState } from "../model/state";
 import { useTwin } from "../store";
+import { SignalWorld } from "./signalWorld";
 
 /** Palette taken from the owner's isometric renders. */
 export const C = {
@@ -30,11 +31,15 @@ export type Num = () => number;
 export const one: Num = () => 1;
 
 /** Shortcuts for reading the shared world state inside useFrame without re-rendering. */
-let wCache: { base: WorldState | null; now: number; w: WorldState | null } = { base: null, now: NaN, w: null };
-/** The world at the current time, for per-frame reads. Rebuilt at most once per frame. */
+const signalWorld = new SignalWorld();
+let wCache: { base: WorldState | null; history: unknown; now: number; rm: boolean; w: WorldState | null } = { base: null, history: null, now: NaN, rm: false, w: null };
+/** The displayed world waits for cable arrivals; reduced motion shows telemetry immediately. */
 export const W = (): WorldState => {
   const s = useTwin.getState();
-  if (wCache.base !== s.world || wCache.now !== s.now) wCache = { base: s.world, now: s.now, w: worldAt(s.world, s.now) };
+  if (wCache.base !== s.world || wCache.history !== s.history || wCache.now !== s.now || wCache.rm !== s.reducedMotion) {
+    wCache = { base: s.world, history: s.history, now: s.now, rm: s.reducedMotion,
+      w: s.reducedMotion ? worldAt(s.world, s.now) : signalWorld.at(s.world, s.history, s.now) };
+  }
   return wCache.w!;
 };
 export const RM = () => useTwin.getState().reducedMotion;

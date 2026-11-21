@@ -16,6 +16,7 @@ import { ReplayCursor, buildTimeline, playToSrc, srcToPlay, type Timeline } from
 import { initialState, isStill, worldAt, type WorldState } from "./model/state";
 import type { ObjectId } from "./content/components";
 import { TOUR, stopTime } from "./content/tour";
+import { signalArrival } from "./scene/signals";
 
 export type Mode = "live" | "replay";
 export type View = "3d" | "2d";
@@ -306,7 +307,9 @@ export const useTwin = create<TwinStore>((set, get) => ({
       ({ timeline, cursor } = prepare(buildScenario(stop.scenario)));
     }
     const ts = stopTime(stop, timeline.events);
-    const target = ts === null ? timeline.playDuration : Math.min(timeline.playDuration, srcToPlay(timeline, ts) + TOUR_AFTER_MS);
+    const arrival = ts === null || get().reducedMotion ? ts : Math.max(ts,
+      ...timeline.events.filter((e) => e.ts === ts).map(signalArrival));
+    const target = arrival === null ? timeline.playDuration : Math.min(timeline.playDuration, srcToPlay(timeline, arrival) + TOUR_AFTER_MS);
     const from = get().play;
     const playThrough = !fresh && target > from && target - from <= TOUR_PLAY_THROUGH_MS;
     const start = get().reducedMotion ? target : playThrough ? from : Math.max(0, target - TOUR_LEAD_MS);
