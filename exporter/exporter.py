@@ -1,4 +1,4 @@
-"""Sleepless Twin in-cluster exporter (Phase D step 4).
+"""Insomniac Daemons Dashboard in-cluster exporter (Phase D step 4).
 
 Runs on the control plane, read-only. Reports what AWS cannot see:
   * job steps, from the platform's SQLite job store (explicit columns only;
@@ -6,7 +6,7 @@ Runs on the control plane, read-only. Reports what AWS cannot see:
   * pod readiness, KEDA's replica count, vLLM state, GPU node join and the
     Cluster Autoscaler's decisions, from the Kubernetes API (get/list only).
 
-Events go to the twin's ingest Lambda as HMAC-signed batches. Standard library
+Events go to the dashboard's ingest Lambda as HMAC-signed batches. Standard library
 only, so it runs on a stock python image with no build step.
 
 Spec: docs/phase-d-spec.md, section 3. Batch format: telemetry/twin/ingest.py.
@@ -118,7 +118,7 @@ class JobStore:
 
 
 def job_events(job: Dict[str, Any], steps: List[Dict[str, Any]]) -> List[Event]:
-    """All twin events implied by one job's step rows. Pure; re-deriving gives the same keys.
+    """All dashboard events implied by one job's step rows. Pure; re-deriving gives the same keys.
 
     The platform rewrites a step row on every state change (INSERT OR REPLACE): started_at
     is the first write, completed_at the latest, state the latest state. Step names and
@@ -217,7 +217,7 @@ def _ready(conds: List[Dict[str, Any]]) -> bool:
 
 
 def k8s_snapshot(get: Callable[..., Dict[str, Any]]) -> Dict[str, Any]:
-    """Current cluster facts the twin shows. Any read that fails leaves its field as None."""
+    """Current cluster facts the dashboard shows. Any read that fails leaves its field as None."""
     snap: Dict[str, Any] = {"podsReady": None, "vllmReplicas": None, "vllm": None, "gpuNode": None, "caEvents": []}
 
     def safe(fn: Callable[[], Any]) -> Any:
@@ -424,7 +424,7 @@ def main() -> None:
     ex = Exporter(JobStore(DB_PATH), k8s.get, Sender(url, key))
     stopping = {"now": False}
     signal.signal(signal.SIGTERM, lambda *_: stopping.update(now=True))
-    log.info("twin exporter started")
+    log.info("dashboard exporter started")
     while not stopping["now"]:
         ex.tick()
         time.sleep(0.5)
@@ -432,7 +432,7 @@ def main() -> None:
     if ex.sender.queue:
         ex.sender.backoff_until = 0
         ex.sender.flush(time.time())
-    log.info("twin exporter stopped")
+    log.info("dashboard exporter stopped")
 
 
 if __name__ == "__main__":

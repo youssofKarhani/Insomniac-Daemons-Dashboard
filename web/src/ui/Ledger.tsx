@@ -2,7 +2,7 @@ import { useShallow } from "zustand/react/shallow";
 import type { RunSummary } from "../data/remote";
 import { runtimeAt } from "../model/state";
 import { CONFIG } from "../model/timings";
-import { useTwin } from "../store";
+import { useDashboard } from "../store";
 import { duration, usd } from "./format";
 import { useRates } from "./rates";
 import { TOUR } from "../content/tour";
@@ -16,9 +16,9 @@ const H = 3_600_000;
  */
 export function Ledger() {
   const rates = useRates();
-  const mode = useTwin((s) => s.mode);
-  const focused = useTwin((s) => s.tour !== null && TOUR[s.tour].panel === "ledger");
-  const v = useTwin(
+  const mode = useDashboard((s) => s.mode);
+  const focused = useDashboard((s) => s.tour !== null && TOUR[s.tour].panel === "ledger");
+  const v = useDashboard(
     useShallow((s) => {
       const rt = runtimeAt(s.world, s.now);
       const span = Math.max(0, s.now - s.timeline.srcStart);
@@ -29,7 +29,7 @@ export function Ledger() {
       };
     }),
   );
-  const billed = useTwin(
+  const billed = useDashboard(
     useShallow((s) => {
       const b = s.costs?.billed;
       if (!b || "error" in b) return null;
@@ -37,12 +37,12 @@ export function Ledger() {
       return m ?? null;
     }),
   );
-  const floor = useTwin((s) => {
+  const floor = useDashboard((s) => {
     const b = s.costs?.billed;
     return b && !("error" in b) ? b.floor ?? null : null;
   });
-  const billedError = useTwin((s) => (s.costs?.billed && "error" in s.costs.billed ? s.costs.billed.error : null));
-  const prewarm = useTwin(useShallow((s) => idlePrewarms(s.recorded, billed?.month)));
+  const billedError = useDashboard((s) => (s.costs?.billed && "error" in s.costs.billed ? s.costs.billed.error : null));
+  const prewarm = useDashboard(useShallow((s) => idlePrewarms(s.recorded, billed?.month)));
 
   const paid = (v.gpuS * 1000 / H) * rates.gpu + (v.cpS * 1000 / H) * rates.controlPlane;
   const alwaysOn = (v.spanS * 1000 / H) * (rates.gpu + rates.controlPlane);

@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import { OBJECTS, type ObjectId } from "../content/components";
 import { worldAt, type WorldState } from "../model/state";
-import { useTwin } from "../store";
+import { useDashboard } from "../store";
 import { SignalWorld } from "./signalWorld";
 
 /** Palette taken from the owner's isometric renders. */
@@ -35,14 +35,14 @@ const signalWorld = new SignalWorld();
 let wCache: { base: WorldState | null; history: unknown; now: number; rm: boolean; w: WorldState | null } = { base: null, history: null, now: NaN, rm: false, w: null };
 /** The displayed world waits for cable arrivals; reduced motion shows telemetry immediately. */
 export const W = (): WorldState => {
-  const s = useTwin.getState();
+  const s = useDashboard.getState();
   if (wCache.base !== s.world || wCache.history !== s.history || wCache.now !== s.now || wCache.rm !== s.reducedMotion) {
     wCache = { base: s.world, history: s.history, now: s.now, rm: s.reducedMotion,
       w: s.reducedMotion ? worldAt(s.world, s.now) : signalWorld.at(s.world, s.history, s.now) };
   }
   return wCache.w!;
 };
-export const RM = () => useTwin.getState().reducedMotion;
+export const RM = () => useDashboard.getState().reducedMotion;
 
 /** 1 at `ts`, fading to 0 over `dur` ms of source time. */
 export function flash(ts: number | undefined, t: number, dur = 1500): number {
@@ -275,9 +275,9 @@ export function Pickable({
   children: ReactNode;
 }) {
   const [hover, setHover] = useState(false);
-  const selected = useTwin((s) => s.selected === id);
-  const labels = useTwin((s) => s.labels);
-  const select = useTwin((s) => s.select);
+  const selected = useDashboard((s) => s.selected === id);
+  const labels = useDashboard((s) => s.labels);
+  const select = useDashboard((s) => s.select);
   const ring = useRef<THREE.MeshBasicMaterial>(null);
   useFrame((_, dt) => {
     if (ring.current) ring.current.opacity = approach(ring.current.opacity, selected ? 0.9 : hover ? 0.45 : 0, 12, dt);

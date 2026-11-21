@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { SCENARIOS, buildScenario } from "../data/scenarios";
-import { parseEvents, sortEvents, type TwinEvent } from "./events";
+import { parseEvents, sortEvents, type DashboardEvent } from "./events";
 import { reduce, reduceAll } from "./reduce";
 import { ReplayCursor, buildTimeline, playToSrc, srcToPlay } from "./replay";
 import { initialState, namedPerQueue, type WorldState } from "./state";
 import { CONFIG, fullColdStartSampleSeconds, gpuStartSampleSeconds } from "./timings";
 
-function finalState(events: TwinEvent[]): WorldState {
+function finalState(events: DashboardEvent[]): WorldState {
   return reduceAll(sortEvents(events), initialState(0));
 }
 
 /** Invariants that must hold after every single event of every scenario. */
-function checkInvariants(s: WorldState, e: TwinEvent) {
+function checkInvariants(s: WorldState, e: DashboardEvent) {
   const where = `${e.id} (${e.kind})`;
   if (s.vllm.state === "ready") {
     expect(s.gpu.state, where).toBe("running");
@@ -123,7 +123,7 @@ describe("reducer", () => {
 
 describe("live telemetry", () => {
   it("tracks polled queue depth without inventing jobs", () => {
-    const ev: TwinEvent = { id: "q1", ts: 10, kind: "queue.depth", confidence: "observed", data: { queue: "gpu", visible: 2, inFlight: 1 } };
+    const ev: DashboardEvent = { id: "q1", ts: 10, kind: "queue.depth", confidence: "observed", data: { queue: "gpu", visible: 2, inFlight: 1 } };
     const s = reduce(initialState(0), ev);
     expect(s.queueDepth.gpu).toEqual({ visible: 2, inFlight: 1 });
     expect(Object.keys(s.jobs)).toHaveLength(0);

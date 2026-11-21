@@ -1,10 +1,10 @@
 import { caption } from "../content/captions";
-import { useTwin } from "../store";
+import { useDashboard } from "../store";
 import { clockUtc } from "./format";
 
 /** Text mirror of the scene: every event up to the playhead, newest first. */
 export function EventLog({ onClose }: { onClose?: () => void }) {
-  const history = useTwin((s) => s.history);
+  const history = useDashboard((s) => s.history);
   const items = history.slice(-80).reverse();
   return (
     <aside className="panel log" aria-label="Event log">

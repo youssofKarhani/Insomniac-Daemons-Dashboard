@@ -210,7 +210,7 @@ def handle(event: Dict[str, Any], env: Env, clients: Clients, store: Store, now_
         events = poll_mod.diff(now, meta, queues, asg, cp_state, attached)
         meta["poll"] = poll_mod.snapshot(queues, asg, meta.get("poll") or {}, attached)
     elif event.get("twin") == "ingest":
-        # From the ingest Lambda: already reduced to twin events with pseudonymous job ids.
+        # From the ingest Lambda: already reduced to dashboard events with pseudonymous job ids.
         # apply_events still runs every event through the allowlist.
         events = [e for e in event.get("events") or [] if isinstance(e, dict)]
         hb = event.get("exporterAt")

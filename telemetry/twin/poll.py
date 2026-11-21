@@ -1,7 +1,7 @@
 """Once-a-minute reading of state AWS does not push as events.
 
 Compares fresh readings with the previous snapshot in meta["poll"] and emits a
-twin event only when something changed. Pure: readings come in as arguments.
+dashboard event only when something changed. Pure: readings come in as arguments.
 """
 
 from __future__ import annotations

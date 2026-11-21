@@ -4,7 +4,7 @@ import { SCENARIOS } from "../data/scenarios";
 import type { EventKind } from "../model/events";
 import { srcToPlay } from "../model/replay";
 import type { RunSummary } from "../data/remote";
-import { sourceKey, useTwin } from "../store";
+import { sourceKey, useDashboard } from "../store";
 import { clockUtc, dateUtc, duration } from "./format";
 
 function runLabel(r: RunSummary): string {
@@ -26,12 +26,12 @@ function tone(kind: EventKind): string {
  * Playhead, scrubber and clock change every frame, so they write to the DOM directly from a
  * store subscription instead of re-rendering the bar. The playhead moves with a transform.
  */
-function useFrameWriter(write: (s: ReturnType<typeof useTwin.getState>) => void) {
+function useFrameWriter(write: (s: ReturnType<typeof useDashboard.getState>) => void) {
   const fn = useRef(write);
   fn.current = write;
   useEffect(() => {
-    fn.current(useTwin.getState());
-    return useTwin.subscribe((s) => fn.current(s));
+    fn.current(useDashboard.getState());
+    return useDashboard.subscribe((s) => fn.current(s));
   }, []);
 }
 
@@ -51,7 +51,7 @@ function ClockText() {
 function Scrubber({ total }: { total: number }) {
   const head = useRef<HTMLSpanElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  const { setPlaying, seek } = useTwin.getState();
+  const { setPlaying, seek } = useDashboard.getState();
   useFrameWriter((s) => {
     const pct = Math.max(0, Math.min(100, (s.play / (s.timeline.playDuration || 1)) * 100));
     if (head.current) head.current.style.transform = `translateX(${pct}%)`;
@@ -83,14 +83,14 @@ function Scrubber({ total }: { total: number }) {
 }
 
 export function ReplayBar() {
-  const timeline = useTwin((s) => s.timeline);
-  const playing = useTwin((s) => s.playing);
-  const speed = useTwin((s) => s.speed);
-  const source = useTwin((s) => s.source);
-  const recorded = useTwin((s) => s.recorded);
-  const loading = useTwin((s) => s.loading);
-  const last = useTwin((s) => s.history[s.history.length - 1]);
-  const { setPlaying, setSpeed, step, loadSource } = useTwin.getState();
+  const timeline = useDashboard((s) => s.timeline);
+  const playing = useDashboard((s) => s.playing);
+  const speed = useDashboard((s) => s.speed);
+  const source = useDashboard((s) => s.source);
+  const recorded = useDashboard((s) => s.recorded);
+  const loading = useDashboard((s) => s.loading);
+  const last = useDashboard((s) => s.history[s.history.length - 1]);
+  const { setPlaying, setSpeed, step, loadSource } = useDashboard.getState();
 
   const total = timeline.playDuration || 1;
   const ticks = useMemo(

@@ -1,4 +1,4 @@
-import { sortEvents, type TwinEvent } from "./events";
+import { sortEvents, type DashboardEvent } from "./events";
 import { reduce } from "./reduce";
 import { initialState, type WorldState } from "./state";
 
@@ -17,7 +17,7 @@ export interface Segment {
 }
 
 export interface Timeline {
-  events: TwinEvent[];
+  events: DashboardEvent[];
   segments: Segment[];
   srcStart: number;
   srcEnd: number;
@@ -30,7 +30,7 @@ const TAIL_MS = 8_000; // Let the final cable signal and its receiving action fi
 /** Motion set off by an event (belts, cable pulses) finishes within this long; never fast-forward it. */
 export const REALTIME_AFTER_EVENT_MS = 8_000;
 
-export function buildTimeline(raw: readonly TwinEvent[], maxGapMs = DEFAULT_MAX_GAP_MS): Timeline {
+export function buildTimeline(raw: readonly DashboardEvent[], maxGapMs = DEFAULT_MAX_GAP_MS): Timeline {
   const events = sortEvents(raw);
   if (events.length === 0) {
     return { events, segments: [], srcStart: 0, srcEnd: 0, playDuration: 0 };
@@ -93,7 +93,7 @@ export function srcToPlay(tl: Timeline, src: number): number {
 }
 
 /** Index of the last event with ts <= t in a sorted list, or -1. */
-export function lastIndexAt(events: readonly TwinEvent[], t: number): number {
+export function lastIndexAt(events: readonly DashboardEvent[], t: number): number {
   let lo = 0;
   let hi = events.length - 1;
   let ans = -1;
@@ -153,7 +153,7 @@ export class ReplayCursor {
   }
 
   /** Events that happened at or before `src`, newest last. */
-  eventsUpTo(src: number): TwinEvent[] {
+  eventsUpTo(src: number): DashboardEvent[] {
     return this.tl.events.slice(0, this.lastIndexAt(src) + 1);
   }
 }

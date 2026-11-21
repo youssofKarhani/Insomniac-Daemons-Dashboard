@@ -1,6 +1,6 @@
 import { useShallow } from "zustand/react/shallow";
 import { SAMPLE_RATES_USD_PER_HOUR as SAMPLE } from "../model/timings";
-import { useTwin } from "../store";
+import { useDashboard } from "../store";
 
 export interface Rates {
   gpu: number;
@@ -13,7 +13,7 @@ export interface Rates {
 
 /** Hourly rates for estimates: AWS list prices when telemetry provides them, sample rates otherwise. */
 export function useRates(): Rates {
-  return useTwin(
+  return useDashboard(
     useShallow((s) => {
       const r = s.costs?.rates;
       const market = s.world.gpu.market;

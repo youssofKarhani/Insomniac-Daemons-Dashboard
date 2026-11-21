@@ -1,4 +1,4 @@
-import { bool, num, str, type TwinEvent } from "../model/events";
+import { bool, num, str, type DashboardEvent } from "../model/events";
 
 const JOB_TYPES: Record<string, string> = {
   tailor_cv: "CV tailoring",
@@ -15,7 +15,7 @@ export function jobLabel(type: string): string {
 }
 
 /** One plain-language sentence per event, for captions and the event log. */
-export function caption(e: TwinEvent): string {
+export function caption(e: DashboardEvent): string {
   switch (e.kind) {
     case "ingress.request":
       return `A ${jobLabel(str(e, "jobType", "new"))} job arrives at the front door.`;

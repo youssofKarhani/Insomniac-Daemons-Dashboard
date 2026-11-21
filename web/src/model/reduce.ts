@@ -1,9 +1,9 @@
-import { bool, num, str, type TwinEvent } from "./events";
+import { bool, num, str, type DashboardEvent } from "./events";
 import { QUEUE_LOCATION, namedPerQueue, type CpState, type GpuState, type JobLocation, type JobView, type Market, type Outcome, type QueueName, type VllmState, type WorldState } from "./state";
 
 const GPU_BILLED: GpuState[] = ["launching", "running", "terminating"];
 
-function upsertJob(s: WorldState, e: TwinEvent): JobView | undefined {
+function upsertJob(s: WorldState, e: DashboardEvent): JobView | undefined {
   if (!e.jobId) return undefined;
   const existing = s.jobs[e.jobId];
   if (existing) return { ...existing };
@@ -36,7 +36,7 @@ function move(s: WorldState, job: JobView, location: JobLocation, at: number): J
  * Pure reducer shared by Live and Replay. Idempotent by event id.
  * Returns a new state object; unchanged branches are shared.
  */
-export function reduce(prev: WorldState, e: TwinEvent): WorldState {
+export function reduce(prev: WorldState, e: DashboardEvent): WorldState {
   if (prev.seen[e.id]) return prev;
   const s: WorldState = {
     ...prev,
@@ -277,7 +277,7 @@ function reconcileAnon(s: WorldState, ts: number, allowGrow: boolean) {
   s.anon = anon;
 }
 
-export function reduceAll(events: readonly TwinEvent[], start: WorldState): WorldState {
+export function reduceAll(events: readonly DashboardEvent[], start: WorldState): WorldState {
   let s = start;
   for (const e of events) s = reduce(s, e);
   return s;

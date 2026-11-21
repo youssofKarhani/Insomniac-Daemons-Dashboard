@@ -5,28 +5,28 @@ import { sortEvents } from "../model/events";
 import { reduce } from "../model/reduce";
 import { lastIndexAt } from "../model/replay";
 import { MOTION_AFTER_EVENT_MS, initialState, isStill } from "../model/state";
-import { currentWorld, useTwin } from "../store";
+import { currentWorld, useDashboard } from "../store";
 import { boxKey, boxViews } from "./status";
 
 /** Re-render budget: playback between events must not hand panels a new world. */
 describe("per-frame updates", () => {
   it("keeps the world object between events and moves only the clock", () => {
-    useTwin.getState().loadSource("sample:cold-gpu");
-    const s0 = useTwin.getState();
+    useDashboard.getState().loadSource("sample:cold-gpu");
+    const s0 = useDashboard.getState();
     const evs = s0.timeline.events;
     // Find a quiet stretch (8 s between events) and start after the 3 s flash of the earlier event.
     const i = evs.findIndex((e, k) => k > 0 && e.ts - evs[k - 1].ts > 8_000);
     const start = evs[i - 1].ts + 3_500;
-    useTwin.getState().seek(0);
+    useDashboard.getState().seek(0);
     // Seek by play time until just past the earlier event, then step frame by frame.
     let p = 0;
-    while (useTwin.getState().now < start) useTwin.getState().seek((p += 16));
-    const world = useTwin.getState().world;
-    const history = useTwin.getState().history;
-    const keys = OBJECT_IDS.map((id) => boxKey(boxViews(currentWorld(useTwin.getState()))[id])).join();
-    const now0 = useTwin.getState().now;
-    for (let k = 0; k < 20; k += 1) useTwin.getState().seek((p += 16));
-    const s = useTwin.getState();
+    while (useDashboard.getState().now < start) useDashboard.getState().seek((p += 16));
+    const world = useDashboard.getState().world;
+    const history = useDashboard.getState().history;
+    const keys = OBJECT_IDS.map((id) => boxKey(boxViews(currentWorld(useDashboard.getState()))[id])).join();
+    const now0 = useDashboard.getState().now;
+    for (let k = 0; k < 20; k += 1) useDashboard.getState().seek((p += 16));
+    const s = useDashboard.getState();
     expect(s.now).toBeGreaterThan(now0);
     expect(s.now).toBeLessThan(evs[i].ts);
     expect(s.world).toBe(world);
@@ -36,12 +36,12 @@ describe("per-frame updates", () => {
   });
 
   it("applies an event exactly when the playhead reaches it", () => {
-    const s = useTwin.getState();
+    const s = useDashboard.getState();
     const before = s.world;
     const e = s.timeline.events.find((x) => x.ts > s.now)!;
-    while (useTwin.getState().now < e.ts) useTwin.getState().seek(useTwin.getState().play + 16);
-    expect(useTwin.getState().world).not.toBe(before);
-    expect(useTwin.getState().world.lastEventId).toBe(e.id);
+    while (useDashboard.getState().now < e.ts) useDashboard.getState().seek(useDashboard.getState().play + 16);
+    expect(useDashboard.getState().world).not.toBe(before);
+    expect(useDashboard.getState().world.lastEventId).toBe(e.id);
   });
 });
 

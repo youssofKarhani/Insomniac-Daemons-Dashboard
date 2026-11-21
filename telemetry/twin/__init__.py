@@ -1,1 +1,1 @@
-"""Telemetry for the Sleepless Twin: AWS events in, redacted public JSON out."""
+"""Telemetry for the Insomniac Daemons Dashboard: AWS events in, redacted public JSON out."""

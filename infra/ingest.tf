@@ -1,7 +1,7 @@
 # ---- Phase D step 2: ingest Lambda --------------------------------------------------
 #
 # The only way application-level events (exporter batches, wake Lambda log lines)
-# enter the twin. It authenticates, reduces to allowlisted events with pseudonymous
+# enter the dashboard. It authenticates, reduces to allowlisted events with pseudonymous
 # job ids, and async-invokes the telemetry Lambda, which stays the single writer.
 # Inert until a source sends: nothing calls it yet.
 

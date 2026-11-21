@@ -1,4 +1,4 @@
-# Read-only: get and list on the few resources the twin shows. No watch, no secrets,
+# Read-only: get and list on the few resources the dashboard shows. No watch, no secrets,
 # no configmaps, no write verbs, no KEDA objects.
 apiVersion: v1
 kind: ServiceAccount

@@ -2,7 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { CONFIG, SAMPLE } from "../model/timings";
-import { useTwin } from "../store";
+import { useDashboard } from "../store";
 import type { JobLocation, WorldState } from "../model/state";
 import { Block, Bolt, C, Lamp, Pickable, ProgressRing, RM, W, approach, clamp01, flash, type Num } from "./kit";
 import { ARCHIVE_LAYER, PLATFORMS, POS, PLATFORM_Y, archiveSink } from "./layout";
@@ -35,7 +35,7 @@ function bootProgress(w: WorldState): number {
   }
 }
 
-/** Breathing factor for inferred states: the visual sign that the twin derived this. */
+/** Breathing factor for inferred states: the visual sign that the dashboard derived this. */
 function breathe(t: number, inferred: boolean) {
   return inferred ? 0.75 + 0.25 * Math.sin(t / 380) : 1;
 }
@@ -331,7 +331,7 @@ export function Crate() {
     if (!plate.current) return;
     // The floor carries the whole pile: it sits one layer under the oldest result.
     const target = -archiveSink(W().archived);
-    const { playing, mode } = useTwin.getState();
+    const { playing, mode } = useDashboard.getState();
     plate.current.position.y = playing || mode === "live" ? approach(plate.current.position.y, target, 6, dt) : target;
     plate.current.visible = plate.current.position.y > -PIT.depth + 0.2;
   });
@@ -534,7 +534,7 @@ export function Gantry() {
     if (door.current) {
       // Open while a cassette hangs at carrying height (in the bay or on its way through).
       const open = gp.cassette && gp.cassetteBottom > SEAT_BOTTOM + 0.5 ? 1 : 0;
-      const { playing, mode } = useTwin.getState();
+      const { playing, mode } = useDashboard.getState();
       const target = -(DOOR.y1 - DOOR.y0) * open;
       door.current.position.y = playing || mode === "live" ? approach(door.current.position.y, target, 6, dt) : target;
     }
@@ -770,7 +770,7 @@ export function GpuNode() {
 
 /** The model core is part of the cassette; this invisible handle lets visitors select it on its own. */
 export function VllmHandle() {
-  const present = useTwin((s) => s.world.gpu.state !== "none");
+  const present = useDashboard((s) => s.world.gpu.state !== "none");
   return (
     <Pickable id="vllm" position={POS.vllm} labelY={2.4} footprint={[0.01, 0.01]} showLabel={present}>
       <mesh position={[0, 0.6, 0.75]} visible={false}>

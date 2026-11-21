@@ -1,7 +1,7 @@
 [project]
-name = "sleepless-twin-exporter"
+name = "insomniac-daemons-exporter"
 version = "0.1.0"
-description = "Read-only in-cluster exporter for the Sleepless Twin (Phase D). Standard library only."
+description = "Read-only in-cluster exporter for the Insomniac Daemons Dashboard (Phase D). Standard library only."
 requires-python = ">=3.12"
 dependencies = []
 
@@ -9,6 +9,6 @@ dependencies = []
 dev = ["pytest>=8"]
 
 [tool.pytest.ini_options]
-# The end-to-end tests run the twin's real ingest and telemetry code.
+# The end-to-end tests run the dashboard's real ingest and telemetry code.
 pythonpath = [".", "../telemetry", "../telemetry/tests"]
 testpaths = ["tests"]

@@ -1,4 +1,4 @@
-"""Twin event vocabulary, mirrored from web/src/model/events.ts.
+"""Dashboard event vocabulary, mirrored from web/src/model/events.ts.
 
 Only these kinds and these data keys may leave the telemetry stack. Anything
 else is dropped before storage (see redact.py).

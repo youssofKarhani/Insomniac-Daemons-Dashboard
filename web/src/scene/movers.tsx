@@ -4,7 +4,7 @@ import * as THREE from "three";
 import type { JobView } from "../model/state";
 import { lastIndexAt } from "../model/replay";
 import { ticketsByLocation, ticketTone, type TicketTone } from "../model/tickets";
-import { useTwin } from "../store";
+import { useDashboard } from "../store";
 import { C, RM, W, approach } from "./kit";
 import { ticketDrawn, ticketOffset } from "./layout";
 import { CABLE_EDGES, along, type Route } from "./routes";
@@ -35,7 +35,7 @@ function Ticket({ job, offset }: { job: JobView; offset: [number, number, number
     const rm = RM();
     poseAt(job, rm ? Infinity : W().t, offset, pose);
     q.setFromUnitVectors(Yv, upV.set(...pose.up));
-    const { playing, mode } = useTwin.getState();
+    const { playing, mode } = useDashboard.getState();
     // While playing, follow the pose closely (this also smooths a slot change in a queue).
     // When paused or scrubbing, sit exactly where the job is.
     if (!placed.current || rm || !(playing || mode === "live")) {
@@ -79,9 +79,9 @@ function Ticket({ job, offset }: { job: JobView; offset: [number, number, number
 
 /** Job tickets, each riding the belts along its own hop history. */
 export function Tickets() {
-  const jobs = useTwin((s) => s.world.jobs);
-  const anon = useTwin((s) => s.world.anon);
-  const archived = useTwin((s) => s.world.archived);
+  const jobs = useDashboard((s) => s.world.jobs);
+  const anon = useDashboard((s) => s.world.anon);
+  const archived = useDashboard((s) => s.world.archived);
   const placed = useMemo(() => {
     const out: { job: JobView; offset: [number, number, number] }[] = [];
     for (const [loc, list] of ticketsByLocation({ jobs, anon })) {
@@ -133,7 +133,7 @@ export function Signals() {
     m.visible = true;
   };
   useFrame(() => {
-    const { history, reducedMotion } = useTwin.getState();
+    const { history, reducedMotion } = useDashboard.getState();
     const world = W();
     let used = 0;
     if (!reducedMotion && !RM()) {

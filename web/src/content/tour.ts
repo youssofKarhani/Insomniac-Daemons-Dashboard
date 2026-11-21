@@ -1,4 +1,4 @@
-import type { EventKind, TwinEvent } from "../model/events";
+import type { EventKind, DashboardEvent } from "../model/events";
 import { CONFIG } from "../model/timings";
 import type { ObjectId } from "./components";
 
@@ -17,7 +17,7 @@ export interface TourStop {
   caption: string;
   scenario: string;
   /** The stop lands just after the first event of this kind that matches. "end" means the end of the run. */
-  anchor: { kind: EventKind; match?: (e: TwinEvent) => boolean } | "end";
+  anchor: { kind: EventKind; match?: (e: DashboardEvent) => boolean } | "end";
 }
 
 const min = (s: number) => `${Math.round(s / 60)} minutes`;
@@ -37,7 +37,7 @@ export const TOUR: TourStop[] = [
     caption:
       "The wake switch files the job in the inbox and turns the control tower on. The job simply waits here; nothing is lost while the tower boots.",
     scenario: "cold-gpu",
-    anchor: { kind: "job.enqueued", match: (e: TwinEvent) => e.data.queue === "workflow" },
+    anchor: { kind: "job.enqueued", match: (e: DashboardEvent) => e.data.queue === "workflow" },
   },
   {
     objectId: "laya",
@@ -52,21 +52,21 @@ export const TOUR: TourStop[] = [
     title: "The GPU queue",
     caption: "A job that passes the gate moves to the GPU queue. This queue is the only thing that can call for a GPU.",
     scenario: "cold-gpu",
-    anchor: { kind: "job.enqueued", match: (e: TwinEvent) => e.data.queue === "gpu" },
+    anchor: { kind: "job.enqueued", match: (e: DashboardEvent) => e.data.queue === "gpu" },
   },
   {
     objectId: "keda",
     title: "The demand lever",
     caption: `KEDA checks the GPU queue every ${CONFIG.kedaPollSeconds} seconds. Seeing work, it asks for one model server, which has nowhere to run yet.`,
     scenario: "cold-gpu",
-    anchor: { kind: "keda.scale", match: (e: TwinEvent) => Number(e.data.replicas) > 0 },
+    anchor: { kind: "keda.scale", match: (e: DashboardEvent) => Number(e.data.replicas) > 0 },
   },
   {
     objectId: "autoscaler",
     title: "The capacity arm",
     caption: "The cluster autoscaler sees a model server with no machine and orders one GPU machine from AWS.",
     scenario: "cold-gpu",
-    anchor: { kind: "asg.desired", match: (e: TwinEvent) => Number(e.data.desired) > 0 },
+    anchor: { kind: "asg.desired", match: (e: DashboardEvent) => Number(e.data.desired) > 0 },
   },
   {
     objectId: "gpuNode",
@@ -74,14 +74,14 @@ export const TOUR: TourStop[] = [
     caption:
       "The GPU machine slides into its cradle. From this moment it is billed by the second, which is why everything else works so hard to keep it away.",
     scenario: "cold-gpu",
-    anchor: { kind: "gpu.instance", match: (e: TwinEvent) => e.data.state === "running" },
+    anchor: { kind: "gpu.instance", match: (e: DashboardEvent) => e.data.state === "running" },
   },
   {
     objectId: "vllm",
     title: "The model core",
     caption: `The model loads from the drive and the core lights up. From an idle platform to a ready model takes about ${CONFIG.coldStartSeconds[0]}–${CONFIG.coldStartSeconds[1]} seconds of GPU start, after the tower itself has booted.`,
     scenario: "cold-gpu",
-    anchor: { kind: "vllm.state", match: (e: TwinEvent) => e.data.state === "ready" },
+    anchor: { kind: "vllm.state", match: (e: DashboardEvent) => e.data.state === "ready" },
   },
   {
     objectId: "laya",
@@ -102,14 +102,14 @@ export const TOUR: TourStop[] = [
     title: "Cooldown and scale-down",
     caption: `After ${CONFIG.kedaCooldownSeconds / 60} quiet minutes KEDA lets the model server go, and ${CONFIG.caScaleDownSeconds / 60} minutes later the autoscaler sends the GPU machine away. GPU billing stops.`,
     scenario: "cold-gpu",
-    anchor: { kind: "gpu.instance", match: (e: TwinEvent) => e.data.state === "terminated" },
+    anchor: { kind: "gpu.instance", match: (e: DashboardEvent) => e.data.state === "terminated" },
   },
   {
     objectId: "watchdog",
     title: "The idle timer",
     caption: `With both queues empty, the idle timer runs for ${min(CONFIG.watchdogIdleSeconds)}, then switches the tower off. The stop guard locks GPU launches so nothing wakes by accident.`,
     scenario: "cold-gpu",
-    anchor: { kind: "cp.state", match: (e: TwinEvent) => e.data.state === "stopped" },
+    anchor: { kind: "cp.state", match: (e: DashboardEvent) => e.data.state === "stopped" },
   },
   {
     objectId: null,
@@ -123,7 +123,7 @@ export const TOUR: TourStop[] = [
 ];
 
 /** Source time a stop lands on, or null if its scenario has no matching event. */
-export function stopTime(stop: TourStop, events: readonly TwinEvent[]): number | null {
+export function stopTime(stop: TourStop, events: readonly DashboardEvent[]): number | null {
   if (stop.anchor === "end") return events.length ? events[events.length - 1].ts : null;
   const { kind, match } = stop.anchor;
   const e = events.find((x) => x.kind === kind && (!match || match(x)));

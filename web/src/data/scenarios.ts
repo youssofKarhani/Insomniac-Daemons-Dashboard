@@ -1,4 +1,4 @@
-import type { EventKind, TwinEvent } from "../model/events";
+import type { EventKind, DashboardEvent } from "../model/events";
 import { CONFIG, SAMPLE } from "../model/timings";
 
 /**
@@ -7,10 +7,10 @@ import { CONFIG, SAMPLE } from "../model/timings";
  * These are SAMPLE data, labelled as such in the UI, until real runs are recorded.
  */
 
-type Data = TwinEvent["data"];
+type Data = DashboardEvent["data"];
 
 class Trace {
-  readonly events: TwinEvent[] = [];
+  readonly events: DashboardEvent[] = [];
   private n = 0;
   constructor(private readonly prefix: string, public t: number) {}
 
@@ -97,7 +97,7 @@ export interface Scenario {
   id: string;
   title: string;
   summary: string;
-  build: (start: number) => TwinEvent[];
+  build: (start: number) => DashboardEvent[];
 }
 
 const DAY = Date.UTC(2026, 10, 14, 9, 12, 0);
@@ -231,7 +231,7 @@ export const SCENARIOS: Scenario[] = [
   },
 ];
 
-export function buildScenario(id: string): TwinEvent[] {
+export function buildScenario(id: string): DashboardEvent[] {
   const sc = SCENARIOS.find((s) => s.id === id) ?? SCENARIOS[0];
   return sc.build(DAY);
 }

@@ -11,7 +11,7 @@ import {
   type LiveDoc,
   type RunSummary,
 } from "./data/remote";
-import type { TwinEvent } from "./model/events";
+import type { DashboardEvent } from "./model/events";
 import { ReplayCursor, buildTimeline, playToSrc, srcToPlay, type Timeline } from "./model/replay";
 import { initialState, isStill, worldAt, type WorldState } from "./model/state";
 import type { ObjectId } from "./content/components";
@@ -38,7 +38,7 @@ export type LiveStatus = "off" | "connecting" | "connected" | "stale" | "error";
 const reducedMotionQuery =
   typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
 
-interface TwinStore {
+interface DashboardStore {
   mode: Mode;
   source: Source;
   timeline: Timeline;
@@ -56,7 +56,7 @@ interface TwinStore {
   /** Source time of the playhead (Replay) or the wall clock (Live). Changes every frame. */
   now: number;
   /** Events at or before the playhead (or now, in Live), newest last. */
-  history: TwinEvent[];
+  history: DashboardEvent[];
   selected: ObjectId | null;
   labels: boolean;
   reducedMotion: boolean;
@@ -99,7 +99,7 @@ export const TOUR_PLAY_THROUGH_MS = 12_000;
 
 export const sourceKey = (s: Source) => `${s.kind}:${s.id}`;
 
-function prepare(events: TwinEvent[]) {
+function prepare(events: DashboardEvent[]) {
   const timeline = buildTimeline(events);
   const cursor = new ReplayCursor(timeline);
   return { timeline, cursor };
@@ -117,7 +117,7 @@ function stateAtNow(cursor: ReplayCursor) {
 }
 
 /** Keeps the previous history array when nothing new happened, so log and captions don't re-render every frame. */
-function stableHistory<T extends { history: TwinEvent[] }>(next: T, prev: TwinEvent[]): T {
+function stableHistory<T extends { history: DashboardEvent[] }>(next: T, prev: DashboardEvent[]): T {
   const same = next.history.length === prev.length && next.history[next.history.length - 1] === prev[prev.length - 1];
   return same ? { ...next, history: prev } : next;
 }
@@ -130,7 +130,7 @@ const first = prepare(buildScenario(SCENARIOS[0].id));
 /** Without telemetry, Live shows the platform asleep where the last sample run ended. */
 const asleep = stateAtPlay(first.timeline, first.cursor, first.timeline.playDuration);
 
-export const useTwin = create<TwinStore>((set, get) => ({
+export const useDashboard = create<DashboardStore>((set, get) => ({
   mode: "live",
   source: { kind: "sample", id: SCENARIOS[0].id },
   timeline: first.timeline,
@@ -174,7 +174,7 @@ export const useTwin = create<TwinStore>((set, get) => ({
   loadSource: async (key) => {
     set({ tour: null, playUntil: null });
     const [kind, id] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
-    let events: TwinEvent[];
+    let events: DashboardEvent[];
     let source: Source;
     if (kind === "run") {
       set({ loading: true });
@@ -333,4 +333,4 @@ export const useTwin = create<TwinStore>((set, get) => ({
 /** The world at the current time. Allocates only when the clock moved; prefer selecting fields. */
 export const currentWorld = (s: { world: WorldState; now: number }) => worldAt(s.world, s.now);
 
-reducedMotionQuery?.addEventListener?.("change", (e) => useTwin.setState({ reducedMotion: e.matches }));
+reducedMotionQuery?.addEventListener?.("change", (e) => useDashboard.setState({ reducedMotion: e.matches }));

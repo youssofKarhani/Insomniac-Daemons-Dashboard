@@ -1,7 +1,7 @@
 import { useShallow } from "zustand/react/shallow";
 import { STALE_AFTER_MS } from "../data/remote";
 import { SCENARIOS } from "../data/scenarios";
-import { currentWorld, useTwin, sourceKey } from "../store";
+import { currentWorld, useDashboard, sourceKey } from "../store";
 import { useRates } from "./rates";
 import { dateUtc, duration } from "./format";
 
@@ -11,12 +11,12 @@ function ago(ms: number): string {
 }
 
 export function StatusLine() {
-  const mode = useTwin((s) => s.mode);
-  const source = useTwin((s) => s.source);
-  const live = useTwin((s) => s.live);
-  const recordedRunCount = useTwin((s) => s.recorded.length);
-  const loadSource = useTwin((s) => s.loadSource);
-  const status = useTwin(
+  const mode = useDashboard((s) => s.mode);
+  const source = useDashboard((s) => s.source);
+  const live = useDashboard((s) => s.live);
+  const recordedRunCount = useDashboard((s) => s.recorded.length);
+  const loadSource = useDashboard((s) => s.loadSource);
+  const status = useDashboard(
     useShallow((s) => {
       const w = currentWorld(s);
       const active = Object.values(w.jobs).filter((j) => j.step !== "done").length;
@@ -33,13 +33,13 @@ export function StatusLine() {
     }),
   );
   // Only once an exporter has ever reported: then silence while the tower runs means job detail is missing.
-  const towerRunning = useTwin((s) => s.world.cp.state === "running");
+  const towerRunning = useDashboard((s) => s.world.cp.state === "running");
   const exporterSilent =
     mode === "live" && towerRunning && live.exporterAt !== undefined && live.generatedAt !== undefined && live.generatedAt - live.exporterAt > STALE_AFTER_MS;
   const rate = useRates().nowPerHour;
   const scenario = SCENARIOS.find((s) => s.id === source.id);
   // Re-render once a second for the "updated … ago" text.
-  useTwin((s) => (s.mode === "live" ? Math.floor(s.now / 1000) : 0));
+  useDashboard((s) => (s.mode === "live" ? Math.floor(s.now / 1000) : 0));
 
   let note: React.ReactNode;
   if (mode === "replay") {

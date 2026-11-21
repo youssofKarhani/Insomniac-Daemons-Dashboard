@@ -1,14 +1,14 @@
 import { useEffect, useRef } from "react";
 import { caption } from "../content/captions";
 import { TOUR } from "../content/tour";
-import { useTwin } from "../store";
+import { useDashboard } from "../store";
 
 /** Guided tour panel. Takes the replay bar's place while a tour runs. */
 export function Tour() {
-  const index = useTwin((s) => s.tour);
-  const playing = useTwin((s) => s.playing);
-  const last = useTwin((s) => s.history[s.history.length - 1]);
-  const { tourGo, endTour } = useTwin.getState();
+  const index = useDashboard((s) => s.tour);
+  const playing = useDashboard((s) => s.playing);
+  const last = useDashboard((s) => s.history[s.history.length - 1]);
+  const { tourGo, endTour } = useDashboard.getState();
   const nextRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildScenario, SCENARIOS } from "../data/scenarios";
-import { useTwin, TOUR_AFTER_MS } from "../store";
+import { useDashboard, TOUR_AFTER_MS } from "../store";
 import { OBJECT_IDS } from "./components";
 import { TOUR, stopTime } from "./tour";
 
@@ -31,10 +31,10 @@ describe("guided tour", () => {
   });
 
   it("lands on each stop with its event applied and its object framed", () => {
-    useTwin.setState({ reducedMotion: true });
+    useDashboard.setState({ reducedMotion: true });
     TOUR.forEach((stop, i) => {
-      useTwin.getState().tourGo(i);
-      const s = useTwin.getState();
+      useDashboard.getState().tourGo(i);
+      const s = useDashboard.getState();
       expect(s.tour).toBe(i);
       expect(s.mode).toBe("replay");
       expect(s.source).toEqual({ kind: "sample", id: stop.scenario });
@@ -45,20 +45,20 @@ describe("guided tour", () => {
     });
     // The reject stop really shows a rejection, and the GPU never woke.
     const reject = TOUR.findIndex((t) => t.scenario === "laya-reject");
-    useTwin.getState().tourGo(reject);
-    expect(useTwin.getState().world.gpu.state).toBe("none");
-    useTwin.getState().endTour();
-    expect(useTwin.getState().tour).toBeNull();
+    useDashboard.getState().tourGo(reject);
+    expect(useDashboard.getState().world.gpu.state).toBe("none");
+    useDashboard.getState().endTour();
+    expect(useDashboard.getState().tour).toBeNull();
   });
 
   it("with motion, plays a lead-in and pauses just after the stop's event", () => {
-    useTwin.setState({ reducedMotion: false });
-    useTwin.getState().tourGo(6);
-    let s = useTwin.getState();
+    useDashboard.setState({ reducedMotion: false });
+    useDashboard.getState().tourGo(6);
+    let s = useDashboard.getState();
     expect(s.playing).toBe(true);
     const until = s.playUntil!;
-    for (let k = 0; k < 400 && useTwin.getState().playing; k += 1) useTwin.getState().tick(50);
-    s = useTwin.getState();
+    for (let k = 0; k < 400 && useDashboard.getState().playing; k += 1) useDashboard.getState().tick(50);
+    s = useDashboard.getState();
     expect(s.playing).toBe(false);
     expect(s.play).toBe(until);
     const ts = stopTime(TOUR[6], s.timeline.events)!;
@@ -68,11 +68,11 @@ describe("guided tour", () => {
   });
 
   it("leaving for Live or another run ends the tour", () => {
-    useTwin.getState().tourGo(2);
-    useTwin.getState().setMode("live");
-    expect(useTwin.getState().tour).toBeNull();
-    useTwin.getState().tourGo(2);
-    useTwin.getState().loadSource("sample:prewarm");
-    expect(useTwin.getState().tour).toBeNull();
+    useDashboard.getState().tourGo(2);
+    useDashboard.getState().setMode("live");
+    expect(useDashboard.getState().tour).toBeNull();
+    useDashboard.getState().tourGo(2);
+    useDashboard.getState().loadSource("sample:prewarm");
+    expect(useDashboard.getState().tour).toBeNull();
   });
 });

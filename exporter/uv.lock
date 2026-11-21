@@ -64,7 +64,7 @@ wheels = [
 ]
 
 [[package]]
-name = "sleepless-twin-exporter"
+name = "insomniac-daemons-exporter"
 version = "0.1.0"
 source = { virtual = "." }
 

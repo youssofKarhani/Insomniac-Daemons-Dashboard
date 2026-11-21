@@ -3,7 +3,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { WorldState } from "../model/state";
 import { ticketsByLocation } from "../model/tickets";
-import { useTwin } from "../store";
+import { useDashboard } from "../store";
 import { Block, C, Lamp, RM, W, approach, type Num } from "./kit";
 import { ticketOffset } from "./layout";
 import { BELTS, BELT_EDGES, CABLES, CABLE_EDGES, LIFT_EDGE, type CableLine, type P3 } from "./routes";
@@ -216,7 +216,7 @@ export function Lift() {
     }
     // Parked at the top while a ticket is with the worker (it will ride back down), else at the bottom.
     const waitingUp = Object.values(w.jobs).some((j) => j.location === "worker");
-    const { playing, mode } = useTwin.getState();
+    const { playing, mode } = useDashboard.getState();
     const target = waitingUp ? carHigh : carLow;
     g.position.y = playing || mode === "live" ? approach(g.position.y, target, 3, dt) : target;
   });

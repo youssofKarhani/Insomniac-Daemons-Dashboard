@@ -1,4 +1,4 @@
-"""Ingest Lambda: authentication, reduction to twin events, pseudonyms, hand-off."""
+"""Ingest Lambda: authentication, reduction to dashboard events, pseudonyms, hand-off."""
 
 from __future__ import annotations
 

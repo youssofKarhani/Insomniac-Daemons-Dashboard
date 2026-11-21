@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { TwinEventSchema } from "../model/events";
+import { DashboardEventSchema } from "../model/events";
 
 /**
- * Public telemetry published by the twin's own AWS stack (see infra/).
+ * Public telemetry published by the dashboard's own AWS stack (see infra/).
  * Unset VITE_TWIN_DATA_URL means "no telemetry": the site runs on sample data.
  */
 export const DATA_URL: string | null = (import.meta.env.VITE_TWIN_DATA_URL as string | undefined)?.replace(/\/$/, "") || null;
@@ -17,7 +17,7 @@ export const LiveDoc = z.object({
   schema: z.literal(1),
   generatedAt: z.number(),
   run: RunRef.nullable(),
-  events: z.array(TwinEventSchema),
+  events: z.array(DashboardEventSchema),
   /** Last heartbeat of the in-cluster exporter (Phase D); absent if none has ever reported. */
   exporterAt: z.number().optional(),
 });
@@ -36,7 +36,7 @@ export const RunSummary = z.object({
 export type RunSummary = z.infer<typeof RunSummary>;
 
 const RunIndex = z.object({ schema: z.literal(1), generatedAt: z.number(), runs: z.array(RunSummary) });
-const RunDoc = z.object({ schema: z.literal(1), run: RunSummary, events: z.array(TwinEventSchema) });
+const RunDoc = z.object({ schema: z.literal(1), run: RunSummary, events: z.array(DashboardEventSchema) });
 
 const Rate = z.object({ instanceType: z.string(), onDemand: z.number().nullable().optional(), spot: z.number().nullable().optional() });
 export const CostsDoc = z.object({

@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { TwinEvent } from "../model/events";
+import type { DashboardEvent } from "../model/events";
 import { reduceAll } from "../model/reduce";
 import { initialState } from "../model/state";
 import { signalArrival } from "./signals";
 import { SignalWorld, signalEvents } from "./signalWorld";
 
-const event = (kind: TwinEvent["kind"], data: TwinEvent["data"], ts = 1000, id: string = kind): TwinEvent =>
+const event = (kind: DashboardEvent["kind"], data: DashboardEvent["data"], ts = 1000, id: string = kind): DashboardEvent =>
   ({ id, kind, data, ts, confidence: "observed" });
 
 describe("signal arrival timing", () => {

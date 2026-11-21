@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DATA_URL, LIVE_POLL_MS } from "../data/remote";
 import { World } from "../scene/World";
-import { useTwin } from "../store";
+import { useDashboard } from "../store";
 import { Inspector } from "./Inspector";
 import { Ledger } from "./Ledger";
 import { EventLog } from "./EventLog";
@@ -28,7 +28,7 @@ function useTicker() {
     const loop = (now: number) => {
       const dt = Math.min(100, now - last);
       last = now;
-      if (!document.hidden) useTwin.getState().tick(dt);
+      if (!document.hidden) useDashboard.getState().tick(dt);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -40,7 +40,7 @@ function useTicker() {
 function useTelemetry() {
   useEffect(() => {
     if (!DATA_URL) return;
-    const s = useTwin.getState();
+    const s = useDashboard.getState();
     s.refreshLive();
     s.refreshRuns();
     s.refreshCosts();
@@ -49,12 +49,12 @@ function useTelemetry() {
         if (!document.hidden) fn();
       }, ms);
     const timers = [
-      every(LIVE_POLL_MS, () => useTwin.getState().refreshLive()),
-      every(60_000, () => useTwin.getState().refreshRuns()),
-      every(30 * 60_000, () => useTwin.getState().refreshCosts()),
+      every(LIVE_POLL_MS, () => useDashboard.getState().refreshLive()),
+      every(60_000, () => useDashboard.getState().refreshRuns()),
+      every(30 * 60_000, () => useDashboard.getState().refreshCosts()),
     ];
     const onVisible = () => {
-      if (!document.hidden) useTwin.getState().refreshLive();
+      if (!document.hidden) useDashboard.getState().refreshLive();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -88,7 +88,7 @@ function useKeyboard() {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
-      const s = useTwin.getState();
+      const s = useDashboard.getState();
       if (s.tour !== null) {
         // During the tour the arrows move between stops; Escape leaves it.
         if (e.key === "ArrowRight" && s.tour < TOUR.length - 1) s.tourGo(s.tour + 1);
@@ -117,20 +117,20 @@ export function App() {
   useTelemetry();
   useKeyboard();
   const webgl = useMemo(hasWebGL, []);
-  const mode = useTwin((s) => s.mode);
-  const setMode = useTwin((s) => s.setMode);
-  const labels = useTwin((s) => s.labels);
-  const setLabels = useTwin((s) => s.setLabels);
+  const mode = useDashboard((s) => s.mode);
+  const setMode = useDashboard((s) => s.setMode);
+  const labels = useDashboard((s) => s.labels);
+  const setLabels = useDashboard((s) => s.setLabels);
   const [logOpen, setLogOpen] = useState(false);
-  const touring = useTwin((s) => s.tour !== null);
-  const chosenView = useTwin((s) => s.view);
-  const setView = useTwin((s) => s.setView);
+  const touring = useDashboard((s) => s.tour !== null);
+  const chosenView = useDashboard((s) => s.view);
+  const setView = useDashboard((s) => s.setView);
   // Without WebGL the schematic is the only view.
   const view = webgl ? chosenView : "2d";
-  const hasSelection = useTwin((s) => s.selected !== null);
+  const hasSelection = useDashboard((s) => s.selected !== null);
   const chromeRef = useChromeHeight();
-  const startTour = useTwin((s) => s.startTour);
-  const tourPanel = useTwin((s) => (s.tour !== null ? TOUR[s.tour].panel : undefined));
+  const startTour = useDashboard((s) => s.startTour);
+  const tourPanel = useDashboard((s) => (s.tour !== null ? TOUR[s.tour].panel : undefined));
 
   return (
     <div className={`app view-${view}${hasSelection ? " has-selection" : ""}${touring ? " touring" : ""}${tourPanel ? ` touring-${tourPanel}` : ""}`}>
@@ -141,7 +141,7 @@ export function App() {
       <div className="chrome" ref={chromeRef}>
       <header className="top">
         <div className="brand">
-          <h1>Sleepless Twin</h1>
+          <h1>Insomniac Daemons Dashboard</h1>
           <p>A scale-to-zero AI platform on AWS, as a living model</p>
         </div>
         <div className="top-actions">

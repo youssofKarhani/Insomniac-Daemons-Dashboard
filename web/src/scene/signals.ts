@@ -1,4 +1,4 @@
-import type { TwinEvent } from "../model/events";
+import type { DashboardEvent } from "../model/events";
 import { cableRoute, type CableNode, type Route } from "./routes";
 import { ARM_PULSE_SPEED } from "./gantry";
 
@@ -10,7 +10,7 @@ interface PulseSpec {
 }
 
 /** Which events send a pulse, and along which cables. Purely a function of the event, so seeking is safe. */
-export function pulseFor(e: TwinEvent): PulseSpec | null {
+export function pulseFor(e: DashboardEvent): PulseSpec | null {
   switch (e.kind) {
     case "ingress.request":
       return { stops: ["net", "lambda"], color: "#c3bdff" };
@@ -52,7 +52,7 @@ export function routeOf(stops: readonly CableNode[]): Route {
 /** Pulse speed along a cable, desk units per second of source time. */
 export const PULSE_SPEED = 7;
 
-export function signalArrival(e: TwinEvent): number {
+export function signalArrival(e: DashboardEvent): number {
   const spec = pulseFor(e);
   return spec ? e.ts + routeOf(spec.stops).len / (spec.speed ?? PULSE_SPEED) * 1000 : e.ts;
 }

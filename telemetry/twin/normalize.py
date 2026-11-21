@@ -1,7 +1,7 @@
-"""Turns raw AWS EventBridge events into twin events. Pure functions.
+"""Turns raw AWS EventBridge events into dashboard events. Pure functions.
 
 Identifiers from the source event are used only to decide *which* component an
-event belongs to; they are never copied into the twin event.
+event belongs to; they are never copied into the dashboard event.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-# ---- IAM: read-only on the platform, write-only to the twin's own storage ----------
+# ---- IAM: read-only on the platform, write-only to the dashboard's own storage ----------
 
 data "aws_iam_policy_document" "lambda_assume" {
   statement {
@@ -125,7 +125,7 @@ resource "aws_lambda_function" "costs" {
   depends_on = [aws_cloudwatch_log_group.costs]
 }
 
-# ---- triggers (new rules owned by the twin; platform rules are untouched) ---------
+# ---- triggers (new rules owned by the dashboard; platform rules are untouched) ---------
 
 resource "aws_cloudwatch_event_rule" "ec2_state" {
   name        = "${local.name}-ec2-state"

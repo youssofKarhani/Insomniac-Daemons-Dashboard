@@ -4,7 +4,7 @@ Status: **proposal**. Nothing here is deployed. Each item marked *needs approval
 platform and is done only after the owner says yes to that item specifically. Everything is built in
 this repository; nothing is edited in the platform repository.
 
-Phase C made the twin's infrastructure layer observed (EC2 states, queue counts, GPU group capacity,
+Phase C made the dashboard's infrastructure layer observed (EC2 states, queue counts, GPU group capacity,
 launch lock). Phase D makes the **application layer** observed: individual jobs, LAYA's decisions,
 KEDA, vLLM, pods and the model drive. It also adds the guided tour and a 2D fallback.
 
@@ -32,7 +32,7 @@ Read with [component-spec.md](component-spec.md), which defines the rules every 
 ## 2. Sources
 
 ```
-Control plane (K3s)                                    Twin stack (this repo, infra/)
+Control plane (K3s)                                    Dashboard stack (this repo, infra/)
 ┌──────────────────────────────────┐
 │ twin-exporter pod (read-only)    │  HTTPS + HMAC    ┌──────────────┐  async   ┌────────────────┐
 │  jobs.db job_steps ──┐           ├─────────────────>│ ingest λ     ├─────────>│ telemetry λ    │
@@ -100,12 +100,12 @@ while the orchestrator and worker hold connections. If the open fails, the expor
 10 s and reports `job store unavailable` (section 3, failure behaviour). It must **not** fall back to
 `immutable=1`, which ignores the WAL and returns stale or inconsistent rows.
 
-### Job steps to twin events
+### Job steps to dashboard events
 
 Step names and states are copied from `services/ai_worker/worker.py` and
 `services/common/models.py` (WorkflowStepState).
 
-| Step row | Twin event | Notes |
+| Step row | Dashboard event | Notes |
 | --- | --- | --- |
 | `step_validation` VALIDATING | `job.dequeued {queue: workflow}` | Worker picked the job from the inbox |
 | `step_decision` DECIDING / `step_triage` DECIDING | (none; ticket moves to the scanner on the next event) | |
@@ -126,11 +126,11 @@ result without a number (schema change, section 7).
 All events from this source are `confidence: observed`. The verify result is read from the order of
 step rows that the worker writes, which is how the worker itself records it.
 
-### Kubernetes to twin events
+### Kubernetes to dashboard events
 
 Polled every 5 s (list, not watch: simpler, and survives API restarts without resume logic).
 
-| Read | Twin event |
+| Read | Dashboard event |
 | --- | --- |
 | Deployments `orchestrator`, `ai-worker`, `laya-service`, `litellm` in `personal-ai-infra`: all Ready | `pods.ready {ready: true}` (observed; replaces the 40 s inference) |
 | Any of them not Ready after having been Ready | `pods.ready {ready: false}` |
@@ -146,7 +146,7 @@ Polled every 5 s (list, not watch: simpler, and survives API restarts without re
 
 ### Transport and authentication
 
-The exporter POSTs batches to the twin's ingest function URL.
+The exporter POSTs batches to the dashboard's ingest function URL.
 
 | Item | Value |
 | --- | --- |
@@ -156,11 +156,11 @@ The exporter POSTs batches to the twin's ingest function URL.
 | Replay | Event ids are deterministic (section 6), so a replayed batch changes nothing |
 | Limits | Body ≤ 256 KB, ≤ 500 events per batch, reserved concurrency 2 |
 | Rejection | 401 with an empty body; no detail about why |
-| Secret | 32 random bytes in an SSM SecureString parameter in the twin stack; copied once into the K8s Secret by the owner; rotated by writing a new value and restarting the pod |
+| Secret | 32 random bytes in an SSM SecureString parameter in the dashboard stack; copied once into the K8s Secret by the owner; rotated by writing a new value and restarting the pod |
 | Where the URL lives | Only in the exporter's ConfigMap. Never in the site, the public data or this repo |
 
 Why not IAM auth: the exporter could sign with the control plane's instance profile (KEDA already
-uses it via `podIdentity: aws`), but that needs a new permission on a platform-owned role. A twin-owned
+uses it via `podIdentity: aws`), but that needs a new permission on a platform-owned role. A dashboard-owned
 HMAC secret keeps the platform's IAM untouched. If the owner prefers IAM, the alternative is an
 `AWS_IAM` function URL plus one `lambda:InvokeFunctionUrl` statement on the control-plane role, added
 by the owner.
@@ -168,7 +168,7 @@ by the owner.
 ### Batching, cursor and restarts
 
 - The exporter sends a batch when it has events, at most every 5 s, and an empty heartbeat batch every
-  60 s while running, so the twin can show "exporter connected".
+  60 s while running, so the dashboard can show "exporter connected".
 - The cursor is held in memory only. On start, the exporter re-sends the last 6 hours of step rows.
   Deterministic event ids make the re-send harmless. The exporter needs no disk of its own.
 - On a failed POST it keeps the batch, retries with backoff (2, 4, 8 … 60 s), and keeps at most 2,000
@@ -183,18 +183,18 @@ by the owner.
   and the exporter can never keep the platform awake.
 - CPU and memory are capped well inside the `t3.medium`'s headroom.
 - Turning it off: `kubectl scale deploy/twin-exporter -n sleepless-twin --replicas=0`, or delete the
-  namespace. The twin falls back to Phase C behaviour for those objects.
+  namespace. The dashboard falls back to Phase C behaviour for those objects.
 
 ## 4. Source B: wake Lambda log subscription (*needs approval*)
 
-A CloudWatch Logs subscription filter on the wake Lambda's log group, delivering to the twin's ingest
+A CloudWatch Logs subscription filter on the wake Lambda's log group, delivering to the dashboard's ingest
 Lambda. Created by this repo's Terraform behind `enable_wake_log_subscription` (default `false`).
 
 The wake Lambda logs every incoming event in full (`Received event: …`), including request bodies,
 headers and caller IPs, and logs the control plane's public IP. The filter therefore matches only
 these five fixed phrases (OR-ed terms), none of which carry bodies or addresses:
 
-| Phrase in the log line | Twin event |
+| Phrase in the log line | Dashboard event |
 | --- | --- |
 | `Handling EventBridge scheduled pre-warm` | `ingress.prewarm` |
 | `successfully pushed to SQS` | `ingress.request {route: /jobs}`, `lambda.invoked {action: enqueue}`, `job.enqueued {queue: workflow, jobId}` |
@@ -215,12 +215,12 @@ change nothing on the platform.
 
 ## 5. Source C: model-volume attachment (no approval needed)
 
-Added to the existing 1-minute poll, using the twin's own role: `ec2:DescribeVolumes` filtered by the
+Added to the existing 1-minute poll, using the dashboard's own role: `ec2:DescribeVolumes` filtered by the
 tag `Name = personal-ai-model-cache-ebs-1c`. Attachment state `attached` / none becomes
 `ebs.attached {attached}`. Freshness up to about 75 s. This changes no platform resource; it only adds
-a read permission to the twin's telemetry role.
+a read permission to the dashboard's telemetry role.
 
-## 6. Ingest Lambda (twin stack)
+## 6. Ingest Lambda (dashboard stack)
 
 | Step | Rule |
 | --- | --- |
@@ -234,7 +234,7 @@ a read permission to the twin's telemetry role.
 `job_salt` is a second SSM SecureString, separate from the HMAC transport secret, so rotating the
 transport secret does not change job pseudonyms.
 
-The telemetry Lambda gains one handler branch for `twin: ingest`. It applies the events exactly like
+The telemetry Lambda gains one handler branch for `dashboard: ingest`. It applies the events exactly like
 EventBridge events (run assignment, store, publish), so `assert_public_safe` still guards every
 published file.
 
@@ -295,8 +295,8 @@ Each step is asked for separately. Later steps do not depend on earlier ones exc
 
 | # | Item | Approval | Switch |
 | --- | --- | --- | --- |
-| 1 | Model-volume attachment in the poll (section 5). **Done 2026-11-18.** | No: twin-only read permission | Remove from `poll.py` |
-| 2 | Ingest Lambda, SSM parameters, schema changes (sections 6–7). **Done 2026-11-18**; see section 14. | No: twin-only resources, inert until a source sends | `enable_ingest` |
+| 1 | Model-volume attachment in the poll (section 5). **Done 2026-11-18.** | No: dashboard-only read permission | Remove from `poll.py` |
+| 2 | Ingest Lambda, SSM parameters, schema changes (sections 6–7). **Done 2026-11-18**; see section 14. | No: dashboard-only resources, inert until a source sends | `enable_ingest` |
 | 3 | Wake log subscription (section 4). **Approved and done 2026-11-18**; see section 14. | **Yes**: attaches to a platform log group | `enable_wake_log_subscription` |
 | 4 | Exporter in the cluster (section 3), after testing on the dev cluster. **Approved 2026-11-18; built and tested, not deployed**: the owner applies it (`exporter/README.md`); see section 14. | **Yes**: runs on the control plane | Scale to 0 or delete the namespace |
 | 5 | Guided tour, 2D fallback. **Guided tour done 2026-11-18; 2D fallback done 2026-11-19**; see section 14. | No | — |
@@ -327,10 +327,10 @@ Each step is asked for separately. Later steps do not depend on earlier ones exc
 
 Well under $1 a month on top of Phase C.
 
-## 13. Platform findings for the owner (not twin work)
+## 13. Platform findings for the owner (not dashboard work)
 
 Found while reading the platform for this spec. They are the owner's to fix in the platform repository;
-the twin works with or without them.
+the dashboard works with or without them.
 
 1. **`/wake` returns the control plane's instance id, public IP and orchestrator address
    (`http://<ip>:8000`) to any caller.** With no authoriser on the API, anyone who finds the URL can

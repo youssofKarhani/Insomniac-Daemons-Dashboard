@@ -40,13 +40,13 @@ FORBIDDEN_LITERALS = [CP_ID, GPU_ID, OTHER_ID, MODEL_VOL_ID, "/dev/sdf", ACCOUNT
 
 
 class World:
-    """A fake AWS account plus the twin's storage, driven step by step."""
+    """A fake AWS account plus the dashboard's storage, driven step by step."""
 
     def __init__(self) -> None:
         self.env = Env(
             {
                 "TABLE_NAME": "twin",
-                "DATA_BUCKET": "twin-data",
+                "DATA_BUCKET": "dashboard-data",
                 "CP_INSTANCE_ID": CP_ID,
                 "QUEUE_URLS": json.dumps(Q),
             }

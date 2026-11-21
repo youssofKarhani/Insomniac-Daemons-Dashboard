@@ -1,6 +1,6 @@
 # Component and telemetry spec
 
-The contract between each object in the twin and the platform it represents. If the code and this
+The contract between each object in the dashboard and the platform it represents. If the code and this
 document disagree, the code is wrong or this document is out of date; fix whichever it is.
 
 Code that implements it:
@@ -114,4 +114,4 @@ Planned in [phase-d-spec.md](phase-d-spec.md).
 - Job identities and overlapping jobs in Live (needs the exporter; Live shows unnamed tickets from counts).
 - KEDA, LAYA, vLLM, pods: exporter, Phase D, with owner approval.
 - Gateway `/status` and `/health` calls: not logged by a fixed phrase, so not shown.
-- The wake API has no authoriser. That is a platform fix for the owner, independent of the twin.
+- The wake API has no authoriser. That is a platform fix for the owner, independent of the dashboard.

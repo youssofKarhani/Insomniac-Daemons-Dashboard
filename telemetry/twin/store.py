@@ -2,7 +2,7 @@
 
 Table layout (single table, on-demand):
   pk = "META",      sk = "meta"                 bookkeeping (private; may hold resource ids)
-  pk = "RUN#<id>",  sk = "EV#<ts:013d>#<id>"    one twin event (already cleaned)
+  pk = "RUN#<id>",  sk = "EV#<ts:013d>#<id>"    one dashboard event (already cleaned)
   pk = "RUNS",      sk = "<start:013d>#<id>"    run summary
 """
 

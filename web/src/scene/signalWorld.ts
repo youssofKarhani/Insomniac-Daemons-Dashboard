@@ -1,11 +1,11 @@
-import type { TwinEvent } from "../model/events";
+import type { DashboardEvent } from "../model/events";
 import { sortEvents } from "../model/events";
 import { ReplayCursor, buildTimeline } from "../model/replay";
 import type { WorldState } from "../model/state";
 import { signalArrival } from "./signals";
 
 /** Presentation-only timing: telemetry and the event log retain their source timestamps. */
-export function signalEvents(events: readonly TwinEvent[]): TwinEvent[] {
+export function signalEvents(events: readonly DashboardEvent[]): DashboardEvent[] {
   const lanes = new Map<string, number>();
   let lambdaArrival = -Infinity;
   return sortEvents(events).map((e) => {
@@ -22,10 +22,10 @@ export function signalEvents(events: readonly TwinEvent[]): TwinEvent[] {
 }
 
 export class SignalWorld {
-  private history: readonly TwinEvent[] | null = null;
+  private history: readonly DashboardEvent[] | null = null;
   private cursor: ReplayCursor | null = null;
 
-  at(base: WorldState, history: readonly TwinEvent[], now: number): WorldState {
+  at(base: WorldState, history: readonly DashboardEvent[], now: number): WorldState {
     if (history !== this.history) {
       this.history = history;
       this.cursor = new ReplayCursor(buildTimeline(signalEvents(history)));

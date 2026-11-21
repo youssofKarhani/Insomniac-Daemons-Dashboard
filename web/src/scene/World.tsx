@@ -9,7 +9,7 @@ interface OrbitControlsImpl {
   maxZoom: number;
   update: () => void;
 }
-import { useTwin } from "../store";
+import { useDashboard } from "../store";
 import { C, W, approach, demand, wake } from "./kit";
 import { DESK_ROTATION, POS } from "./layout";
 import { Tickets, Signals } from "./movers";
@@ -73,7 +73,7 @@ function CameraRig() {
   const size = useThree((s) => s.size);
   const camera = useThree((s) => s.camera) as THREE.OrthographicCamera;
   const controls = useThree((s) => s.controls) as unknown as OrbitControlsImpl | null;
-  const selected = useTwin((s) => s.selected);
+  const selected = useDashboard((s) => s.selected);
   // The desk's isometric footprint is about 31 x 22 world units; leave room for the overlays.
   // On phones the desk is cropped slightly at the sides so objects stay tappable.
   const baseZoom = useMemo(
@@ -135,7 +135,7 @@ function DemandDriver() {
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
     demand.invalidate = invalidate;
-    const unsub = useTwin.subscribe(() => wake(SETTLE_MS));
+    const unsub = useDashboard.subscribe(() => wake(SETTLE_MS));
     wake(SETTLE_MS);
     return () => {
       unsub();
@@ -149,7 +149,7 @@ function DemandDriver() {
 }
 
 export function World() {
-  const select = useTwin((s) => s.select);
+  const select = useDashboard((s) => s.select);
   return (
     <Canvas
       dpr={[1, 2]}

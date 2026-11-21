@@ -1,10 +1,10 @@
-"""Ingest Lambda: the only way application-level events enter the twin.
+"""Ingest Lambda: the only way application-level events enter the dashboard.
 
 Two inputs:
   * Exporter batches over the function URL, signed with HMAC-SHA256.
   * CloudWatch Logs subscription batches from the wake Lambda (Phase D step 3).
 
-Both are checked, reduced to allowlisted twin events with pseudonymous job ids,
+Both are checked, reduced to allowlisted dashboard events with pseudonymous job ids,
 and handed to the telemetry Lambda (the single writer) by async invoke. Nothing
 here writes to DynamoDB or S3, and raw job ids and log lines never leave this
 module.
@@ -114,7 +114,7 @@ def _ts_ok(ts: Any, now_ms: int) -> bool:
 
 
 def from_exporter(batch: Any, salt: bytes, now_ms: int) -> List[Dict[str, Any]]:
-    """Twin events from one exporter batch. Anything malformed is dropped, not repaired."""
+    """Dashboard events from one exporter batch. Anything malformed is dropped, not repaired."""
     if not isinstance(batch, dict) or batch.get("v") != 1 or not isinstance(batch.get("events"), list):
         raise ValueError("bad batch")
     out: List[Dict[str, Any]] = []

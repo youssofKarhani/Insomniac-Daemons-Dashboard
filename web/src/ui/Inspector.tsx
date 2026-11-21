@@ -1,12 +1,12 @@
 import { OBJECT_IDS, OBJECTS } from "../content/components";
-import { currentWorld, useTwin } from "../store";
+import { currentWorld, useDashboard } from "../store";
 import { describe } from "./describe";
 
 export function Inspector() {
-  const selected = useTwin((s) => s.selected);
-  const select = useTwin((s) => s.select);
-  const mode = useTwin((s) => s.mode);
-  const line = useTwin((s) => (s.selected ? describe(s.selected, currentWorld(s)) : ""));
+  const selected = useDashboard((s) => s.selected);
+  const select = useDashboard((s) => s.select);
+  const mode = useDashboard((s) => s.mode);
+  const line = useDashboard((s) => (s.selected ? describe(s.selected, currentWorld(s)) : ""));
   if (!selected) return null;
   const info = OBJECTS[selected];
   const i = OBJECT_IDS.indexOf(selected);

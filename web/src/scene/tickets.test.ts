@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { TwinEvent } from "../model/events";
+import type { DashboardEvent } from "../model/events";
 import { reduce } from "../model/reduce";
 import { initialState, type QueueName, type WorldState } from "../model/state";
 import { ticketsByLocation } from "../model/tickets";
@@ -8,7 +8,7 @@ import { runsOf } from "./ticketPath";
 
 let n = 0;
 const depth = (w: WorldState, ts: number, queue: QueueName, visible: number, inFlight = 0) =>
-  reduce(w, { id: `d${n++}`, ts, kind: "queue.depth", confidence: "observed", data: { queue, visible, inFlight } } as TwinEvent);
+  reduce(w, { id: `d${n++}`, ts, kind: "queue.depth", confidence: "observed", data: { queue, visible, inFlight } } as DashboardEvent);
 
 describe("unnamed tickets for polled depth", () => {
   it("ride in from the front door when depth rises and out to the archive when it falls", () => {
@@ -44,7 +44,7 @@ describe("unnamed tickets for polled depth", () => {
   it("never appear between polls because a named job moved", () => {
     let w = depth(initialState(0), 1_000, "workflow", 1);
     const job = (kind: string, ts: number, data: Record<string, unknown> = {}) =>
-      (w = reduce(w, { id: `j${n++}`, ts, kind, confidence: "observed", jobId: "job-1", data } as TwinEvent));
+      (w = reduce(w, { id: `j${n++}`, ts, kind, confidence: "observed", jobId: "job-1", data } as DashboardEvent));
     // The polled message is this named job: it takes the unnamed ticket's place.
     job("ingress.request", 2_000, { route: "/jobs" });
     job("job.enqueued", 2_100, { queue: "workflow" });

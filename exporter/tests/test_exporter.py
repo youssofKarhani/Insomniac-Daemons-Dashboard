@@ -1,5 +1,5 @@
 """Exporter tests: job-store mapping, data minimisation, K8s diffing, sending, and the full
-path exporter -> ingest -> telemetry using the twin's real code."""
+path exporter -> ingest -> telemetry using the dashboard's real code."""
 
 from __future__ import annotations
 
@@ -306,7 +306,7 @@ def test_queue_is_capped() -> None:
 # ---- end to end: exporter -> ingest -> telemetry -> public files ---------------------
 
 
-def test_full_path_into_the_twin(db: Tuple[Path, Platform]) -> None:
+def test_full_path_into_the_dashboard(db: Tuple[Path, Platform]) -> None:
     cap = run_exporter(db[0])
     sec = ingest.Secrets(lambda n: {"h": KEY, "s": SALT}[n], "h", "s")
     forwarded: List[Dict[str, Any]] = []

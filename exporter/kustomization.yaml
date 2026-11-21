@@ -1,4 +1,4 @@
-# Sleepless Twin exporter. Applied by the platform owner:
+# Insomniac Daemons Dashboard exporter. Applied by the platform owner:
 #   kubectl apply -k exporter
 # after creating the Secret described in exporter/README.md. Removing it:
 #   kubectl delete -k exporter

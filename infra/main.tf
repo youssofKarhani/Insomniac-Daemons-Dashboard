@@ -1,5 +1,5 @@
 # ==============================================================================
-# Sleepless Twin: telemetry stack
+# Insomniac Daemons Dashboard: telemetry stack
 #
 # Read-only observer of the platform. It creates its own resources only and
 # never modifies any platform resource. Platform resources are found by name.

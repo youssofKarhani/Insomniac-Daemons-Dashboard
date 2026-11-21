@@ -1,6 +1,6 @@
-# Sleepless Twin
+# Insomniac Daemons Dashboard
 
-An interactive isometric digital twin of the scale-to-zero AI platform on AWS ("My Sleepless Slaves").
+An interactive isometric dashboard of the scale-to-zero AI platform on AWS ("My Sleepless Slaves").
 
 - Brief: [docs/brief.html](docs/brief.html)
 - Design direction (Phase A): [docs/design.html](docs/design.html)
@@ -26,7 +26,7 @@ pnpm build
 ## How it works
 
 ```
-TwinEvent[] ──> reduce() ──> WorldState ──> scene objects ease toward it each frame
+DashboardEvent[] ──> reduce() ──> WorldState ──> scene objects ease toward it each frame
    (sample traces now,         (pure, idempotent,     (procedural boxes in web/src/scene)
     AWS telemetry later)        shared by Live and Replay)
 ```
@@ -47,7 +47,7 @@ EventBridge schedule, daily ──> Lambda costs (Cost Explorer, Pricing API) �
 ```
 
 - `telemetry/`: Python 3.12 Lambdas. Every published document passes an allowlist and a scanner that blocks ARNs, account ids, resource ids, IPs and URLs (`twin/redact.py`).
-- `infra/`: Terraform for the twin's own resources. Platform resources are only looked up by name; none are modified.
+- `infra/`: Terraform for the dashboard's own resources. Platform resources are only looked up by name; none are modified.
 - A *run* is one wake session of the control plane.
 - What is observed vs inferred today: control-plane and GPU instance states, queue depths, GPU group capacity and launch lock are **observed**. Pod readiness is **inferred** (40 s after the host runs). KEDA, vLLM and job identities need the in-cluster exporter (Phase D) and are not shown live.
 - Freshness depends on the source: EC2 state changes arrive in seconds; queue counts and GPU group size are polled each minute, so up to about 75 s behind. Each object's inspector says which applies.
@@ -66,8 +66,8 @@ cd ../web && pnpm dev --mode fixture   # Live and Replay read the fixture files
 ```bash
 cd infra
 terraform init
-terraform plan -out twin.plan
-terraform apply twin.plan
+terraform plan -out dashboard.plan
+terraform apply dashboard.plan
 ```
 
 Then build the site with `VITE_TWIN_DATA_URL` set to the `data_base_url` output, and add the site's origin to `allowed_origins`.

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { OBJECT_IDS, OBJECTS, type ObjectId } from "../content/components";
-import { currentWorld, useTwin } from "../store";
+import { currentWorld, useDashboard } from "../store";
 import { layout } from "./schematicLayout";
 import { MAX_DOTS, boxKey, boxViews } from "./status";
 
@@ -29,17 +29,17 @@ export function Schematic({ tall: forceTall }: { tall?: boolean }) {
   const L = useMemo(() => layout(tall ? "tall" : "wide"), [tall]);
   // Select one short key per box: the schematic re-renders when a box's drawing
   // changes, not on every frame of playback.
-  const keys = useTwin(
+  const keys = useDashboard(
     useShallow((s) => {
       const v = boxViews(currentWorld(s));
       return OBJECT_IDS.map((id) => boxKey(v[id]));
     }),
   );
-  const selected = useTwin((s) => s.selected);
-  const reducedMotion = useTwin((s) => s.reducedMotion);
-  const select = useTwin((s) => s.select);
+  const selected = useDashboard((s) => s.selected);
+  const reducedMotion = useDashboard((s) => s.reducedMotion);
+  const select = useDashboard((s) => s.select);
   // Rebuilt from the current state whenever a key changed (the keys came from that same state).
-  const views = useMemo(() => boxViews(currentWorld(useTwin.getState())), [keys]);
+  const views = useMemo(() => boxViews(currentWorld(useDashboard.getState())), [keys]);
   const scroller = useRef<HTMLDivElement>(null);
 
   // On a phone the selected box (for example a tour stop) may be off screen.
