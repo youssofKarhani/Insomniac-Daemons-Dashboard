@@ -6,6 +6,7 @@ import { OBJECTS, type ObjectId } from "../content/components";
 import { worldAt, type WorldState } from "../model/state";
 import { useDashboard } from "../store";
 import { SignalWorld } from "./signalWorld";
+import { scheduleWorld } from "./ticketPath";
 
 /** Palette taken from the owner's isometric renders. */
 export const C = {
@@ -39,6 +40,7 @@ export const W = (): WorldState => {
   if (wCache.base !== s.world || wCache.history !== s.history || wCache.now !== s.now || wCache.rm !== s.reducedMotion) {
     wCache = { base: s.world, history: s.history, now: s.now, rm: s.reducedMotion,
       w: s.reducedMotion ? worldAt(s.world, s.now) : signalWorld.at(s.world, s.history, s.now) };
+    scheduleWorld(wCache.w!);
   }
   return wCache.w!;
 };

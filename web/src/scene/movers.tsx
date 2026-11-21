@@ -3,13 +3,13 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { JobView } from "../model/state";
 import { lastIndexAt } from "../model/replay";
-import { ticketsByLocation, ticketTone, type TicketTone } from "../model/tickets";
+import { ticketsByLocation, type TicketTone } from "../model/tickets";
 import { useDashboard } from "../store";
 import { C, RM, W, approach } from "./kit";
 import { ticketDrawn, ticketOffset } from "./layout";
 import { CABLE_EDGES, along, type Route } from "./routes";
-import { newPose, poseAt, restingAt } from "./ticketPath";
-import { pulseFor, routeOf, PULSE_SPEED } from "./signals";
+import { marksAt, newPose, poseAt, restingAt, slotAt, type Marks } from "./ticketPath";
+import { pulseFor, pulseWindows, routeOf, PULSE_SPEED } from "./signals";
 
 const STAMP: Record<TicketTone, string> = {
   plain: C.ticket,
@@ -19,21 +19,31 @@ const STAMP: Record<TicketTone, string> = {
   fail: C.red,
   decided: C.lavEdge,
 };
-const stampColor = (j: JobView) => STAMP[ticketTone(j)];
 
 const Yv = new THREE.Vector3(0, 1, 0);
 
-function Ticket({ job, offset }: { job: JobView; offset: [number, number, number] }) {
+function Ticket({ job }: { job: JobView }) {
   const g = useRef<THREE.Group>(null);
   const placed = useRef(false);
   const pose = useMemo(newPose, []);
   const q = useMemo(() => new THREE.Quaternion(), []);
   const upV = useMemo(() => new THREE.Vector3(), []);
+  const marks = useMemo<Marks>(() => ({ tone: "plain", pips: 0, held: false }), []);
+  const stamp = useRef<THREE.MeshBasicMaterial>(null);
+  const pips = useRef<(THREE.Mesh | null)[]>([]);
+  const band = useRef<THREE.Mesh>(null);
   useFrame((_, dt) => {
     const m = g.current;
     if (!m) return;
     const rm = RM();
-    poseAt(job, rm ? Infinity : W().t, offset, pose);
+    const w = W();
+    const t = rm ? Infinity : w.t;
+    const all = [...Object.values(w.jobs), ...Object.values(w.anon)];
+    poseAt(job, t, ticketOffset(job.location, slotAt(all, job, t), job, w.archived), pose);
+    marksAt(job, t, marks);
+    stamp.current?.color.set(STAMP[marks.tone]);
+    pips.current.forEach((p, i) => p && (p.visible = i < marks.pips));
+    if (band.current) band.current.visible = marks.held;
     q.setFromUnitVectors(Yv, upV.set(...pose.up));
     const { playing, mode } = useDashboard.getState();
     // While playing, follow the pose closely (this also smooths a slot change in a queue).
@@ -58,21 +68,19 @@ function Ticket({ job, offset }: { job: JobView; offset: [number, number, number
       </mesh>
       <mesh position={[0.18, 0.06, 0]}>
         <boxGeometry args={[0.24, 0.03, 0.24]} />
-        <meshBasicMaterial color={stampColor(job)} toneMapped={false} />
+        <meshBasicMaterial ref={stamp} color={C.ticket} toneMapped={false} />
       </mesh>
-      {Array.from({ length: Math.min(job.receiveCount, 3) }, (_, i) => (
-        <mesh key={i} position={[-0.26 + i * 0.11, 0.06, -0.17]}>
+      {[0, 1, 2].map((i) => (
+        <mesh key={i} ref={(p) => (pips.current[i] = p)} visible={false} position={[-0.26 + i * 0.11, 0.06, -0.17]}>
           <boxGeometry args={[0.07, 0.03, 0.07]} />
           <meshBasicMaterial color={C.amber} toneMapped={false} />
         </mesh>
       ))}
       {/* Held by the worker: a claim band across the ticket instead of the ticket floating. */}
-      {job.inFlight && (
-        <mesh position={[-0.12, 0.065, 0]}>
-          <boxGeometry args={[0.09, 0.04, 0.56]} />
-          <meshBasicMaterial color={C.violet} toneMapped={false} />
-        </mesh>
-      )}
+      <mesh ref={band} visible={false} position={[-0.12, 0.065, 0]}>
+        <boxGeometry args={[0.09, 0.04, 0.56]} />
+        <meshBasicMaterial color={C.violet} toneMapped={false} />
+      </mesh>
     </group>
   );
 }
@@ -83,18 +91,18 @@ export function Tickets() {
   const anon = useDashboard((s) => s.world.anon);
   const archived = useDashboard((s) => s.world.archived);
   const placed = useMemo(() => {
-    const out: { job: JobView; offset: [number, number, number] }[] = [];
+    const out: { job: JobView }[] = [];
     for (const [loc, list] of ticketsByLocation({ jobs, anon })) {
-      list.forEach((job, n) => {
-        if (ticketDrawn(loc, job, archived)) out.push({ job, offset: ticketOffset(loc, n, job, archived) });
+      list.forEach((job) => {
+        if (ticketDrawn(loc, job, archived)) out.push({ job });
       });
     }
     return out;
   }, [jobs, anon, archived]);
   return (
     <group>
-      {placed.map(({ job, offset }) => (
-        <Ticket key={job.id} job={job} offset={offset} />
+      {placed.map(({ job }) => (
+        <Ticket key={job.id} job={job} />
       ))}
     </group>
   );
@@ -146,7 +154,9 @@ export function Signals() {
         const spec = pulseFor(e);
         if (!spec) continue;
         const r = routeOf(spec.stops);
-        const head = ((t - e.ts) / 1000) * (spec.speed ?? PULSE_SPEED);
+        const depart = pulseWindows(ev).get(e.id)?.depart ?? e.ts;
+        if (t < depart) continue;
+        const head = ((t - depart) / 1000) * (spec.speed ?? PULSE_SPEED);
         if (head - (TRAIL - 1) * TRAIL_GAP > r.len) continue;
         for (let k = 0; k < TRAIL && used < POOL; k += 1) {
           const d = head - k * TRAIL_GAP;

@@ -72,3 +72,21 @@ describe("archive", () => {
     }
   });
 });
+
+describe("ticket marks", () => {
+  it("are earned at the station: LAYA's stamp only once the ticket has reached LAYA", async () => {
+    const { buildScenario } = await import("../data/scenarios");
+    const { reduceAll } = await import("../model/reduce");
+    const { marksAt } = await import("./ticketPath");
+    const events = buildScenario("cold-gpu");
+    const gate = events.find((e) => e.kind === "laya.gate")!;
+    const w = reduceAll(events.filter((e) => e.ts <= gate.ts), initialState());
+    const job = w.jobs[gate.jobId!];
+    const runs = runsOf(job.hops);
+    const toLaya = runs[runs.length - 1];
+    const m = { tone: "plain" as const, pips: 0, held: false } as Parameters<typeof marksAt>[2];
+    expect(marksAt(job, gate.ts, m).tone).toBe("plain");
+    expect(marksAt(job, toLaya.end - 1, m).tone).toBe("plain");
+    expect(marksAt(job, toLaya.end, m).tone).toBe("pass");
+  });
+});

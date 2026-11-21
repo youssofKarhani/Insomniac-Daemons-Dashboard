@@ -2,18 +2,21 @@ import type { DashboardEvent } from "../model/events";
 import { sortEvents } from "../model/events";
 import { ReplayCursor, buildTimeline } from "../model/replay";
 import type { WorldState } from "../model/state";
-import { signalArrival } from "./signals";
+import { pulseWindows } from "./signals";
 
 /** Presentation-only timing: telemetry and the event log retain their source timestamps. */
 export function signalEvents(events: readonly DashboardEvent[]): DashboardEvent[] {
   const lanes = new Map<string, number>();
   let lambdaArrival = -Infinity;
-  return sortEvents(events).map((e) => {
-    if (e.kind === "ingress.request" || e.kind === "ingress.prewarm") lambdaArrival = signalArrival(e);
+  const sorted = sortEvents(events);
+  const windows = pulseWindows(sorted);
+  const arrival = (e: DashboardEvent) => windows.get(e.id)?.arrive ?? e.ts;
+  return sorted.map((e) => {
+    if (e.kind === "ingress.request" || e.kind === "ingress.prewarm") lambdaArrival = arrival(e);
     // The gantry already waits for its command in gantryAt; do not delay it twice.
     const delayed = ["cp.state", "keda.scale", "guard.latch", "ebs.attached", "node.joined", "ssm.session"].includes(e.kind);
     const lane = e.kind === "pods.ready" ? "cp.state" : e.kind;
-    let ts = delayed ? signalArrival(e) : e.ts;
+    let ts = delayed ? arrival(e) : e.ts;
     if (e.kind === "lambda.invoked") ts = Math.max(ts, lambdaArrival);
     ts = Math.max(ts, (lanes.get(lane) ?? -Infinity) + 0.001);
     lanes.set(lane, ts);

@@ -308,7 +308,7 @@ export const useDashboard = create<DashboardStore>((set, get) => ({
     }
     const ts = stopTime(stop, timeline.events);
     const arrival = ts === null || get().reducedMotion ? ts : Math.max(ts,
-      ...timeline.events.filter((e) => e.ts === ts).map(signalArrival));
+      ...timeline.events.filter((e) => e.ts === ts).map((e) => signalArrival(e, timeline.events)));
     const target = arrival === null ? timeline.playDuration : Math.min(timeline.playDuration, srcToPlay(timeline, arrival) + TOUR_AFTER_MS);
     const from = get().play;
     const playThrough = !fresh && target > from && target - from <= TOUR_PLAY_THROUGH_MS;

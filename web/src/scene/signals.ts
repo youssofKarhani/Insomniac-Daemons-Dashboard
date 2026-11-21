@@ -52,7 +52,39 @@ export function routeOf(stops: readonly CableNode[]): Route {
 /** Pulse speed along a cable, desk units per second of source time. */
 export const PULSE_SPEED = 7;
 
-export function signalArrival(e: DashboardEvent): number {
-  const spec = pulseFor(e);
-  return spec ? e.ts + routeOf(spec.stops).len / (spec.speed ?? PULSE_SPEED) * 1000 : e.ts;
+export interface PulseWindow {
+  /** When the pulse leaves its first stop. */
+  depart: number;
+  /** When it reaches its last stop. */
+  arrive: number;
+}
+
+const windowCache = new WeakMap<readonly DashboardEvent[], Map<string, PulseWindow>>();
+
+/**
+ * When each event's pulse travels. A pulse leaves a box no earlier than the latest pulse into
+ * that box has arrived: the wake switch only fires once the request has actually reached it.
+ * Depends only on earlier events, so any prefix of the history gives the same windows.
+ */
+export function pulseWindows(events: readonly DashboardEvent[]): Map<string, PulseWindow> {
+  const hit = windowCache.get(events);
+  if (hit) return hit;
+  const out = new Map<string, PulseWindow>();
+  const arrivedAt = new Map<CableNode, number>();
+  for (const e of events) {
+    const spec = pulseFor(e);
+    if (!spec) continue;
+    const depart = Math.max(e.ts, arrivedAt.get(spec.stops[0]) ?? -Infinity);
+    const arrive = depart + (routeOf(spec.stops).len / (spec.speed ?? PULSE_SPEED)) * 1000;
+    out.set(e.id, { depart, arrive });
+    const last = spec.stops[spec.stops.length - 1];
+    arrivedAt.set(last, Math.max(arrivedAt.get(last) ?? -Infinity, arrive));
+  }
+  windowCache.set(events, out);
+  return out;
+}
+
+/** When the event's pulse reaches its target (the event time when it sends none). */
+export function signalArrival(e: DashboardEvent, events: readonly DashboardEvent[]): number {
+  return pulseWindows(events).get(e.id)?.arrive ?? e.ts;
 }

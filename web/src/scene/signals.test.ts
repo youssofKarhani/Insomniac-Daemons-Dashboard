@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { DashboardEvent } from "../model/events";
 import { reduceAll } from "../model/reduce";
 import { initialState } from "../model/state";
-import { signalArrival } from "./signals";
+import { pulseWindows, signalArrival } from "./signals";
 import { SignalWorld, signalEvents } from "./signalWorld";
 
 const event = (kind: DashboardEvent["kind"], data: DashboardEvent["data"], ts = 1000, id: string = kind): DashboardEvent =>
@@ -20,7 +20,7 @@ describe("signal arrival timing", () => {
     const history = [e];
     const base = reduceAll(history, initialState());
     const visual = new SignalWorld();
-    const arrival = signalArrival(e);
+    const arrival = signalArrival(e, history);
     const fields = (w: ReturnType<SignalWorld["at"]>) => [w.guardLocked, w.cp.state, w.keda.replicas, w.gpu.ebsAttached, w.gpu.joined, w.ssmOpen];
     expect(arrival).toBeGreaterThan(e.ts);
     expect(fields(visual.at(base, history, arrival - 1))).toEqual(fields(initialState()));
@@ -42,8 +42,23 @@ describe("signal arrival timing", () => {
     const events = [ingress, invoke];
     const visual = new SignalWorld();
     const base = reduceAll(events, initialState());
-    expect(visual.at(base, events, signalArrival(ingress) - 1).pulses.lambda).toBeUndefined();
-    expect(visual.at(base, events, signalArrival(ingress)).pulses.lambda).toBe(signalArrival(ingress));
+    expect(visual.at(base, events, signalArrival(ingress, events) - 1).pulses.lambda).toBeUndefined();
+    expect(visual.at(base, events, signalArrival(ingress, events)).pulses.lambda).toBe(signalArrival(ingress, events));
+  });
+
+  it("sends nothing out of the wake switch before the request has reached it", () => {
+    const ingress = event("ingress.request", { route: "/jobs" }, 1000, "i");
+    const wakeTower = event("cp.state", { state: "pending" }, 1180, "w");
+    const unlock = event("guard.latch", { locked: false }, 1480, "g");
+    const events = [ingress, wakeTower, unlock];
+    const win = pulseWindows(events);
+    const reached = win.get("i")!.arrive;
+    expect(win.get("w")!.depart).toBeGreaterThanOrEqual(reached);
+    expect(win.get("g")!.depart).toBeGreaterThanOrEqual(reached);
+    // The tower lights only when the wake pulse that left after the request gets there.
+    const base = reduceAll(events, initialState());
+    const shown = new SignalWorld();
+    expect(shown.at(base, events, win.get("w")!.arrive - 1).cp.state).toBe("stopped");
+    expect(shown.at(base, events, win.get("w")!.arrive).cp.state).toBe("pending");
   });
 });
-

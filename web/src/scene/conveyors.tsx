@@ -7,7 +7,7 @@ import { useDashboard } from "../store";
 import { Block, C, Lamp, RM, W, approach, type Num } from "./kit";
 import { ticketOffset } from "./layout";
 import { BELTS, BELT_EDGES, CABLES, CABLE_EDGES, LIFT_EDGE, type CableLine, type P3 } from "./routes";
-import { newPose, poseAt, upOf, type Pose } from "./ticketPath";
+import { newPose, poseAt, slotAt, upOf, type Pose } from "./ticketPath";
 
 const BELT_W = 0.7;
 const BELT_T = 0.06;
@@ -60,10 +60,11 @@ function usePoses() {
   return (w: WorldState) => {
     const t = RM() ? Infinity : w.t;
     const seen = new Set<string>();
+    const all = [...Object.values(w.jobs), ...Object.values(w.anon)];
     for (const [loc, list] of ticketsByLocation(w)) {
-      list.forEach((job, n) => {
+      list.forEach((job) => {
         if (job.hops.length === 0) return;
-        const o = ticketOffset(loc, n, job, w.archived);
+        const o = ticketOffset(loc, slotAt(all, job, t), job, w.archived);
         off[0] = o[0];
         off[1] = o[1];
         off[2] = o[2];
