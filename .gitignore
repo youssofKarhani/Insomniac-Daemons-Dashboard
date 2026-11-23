@@ -17,3 +17,7 @@ web/public/dev-data/
 !web/.env.fixture
 *.log
 .DS_Store
+
+# Locally installed agent skills (third-party, not part of the dashboard)
+.claude/skills/
+skills-lock.json
