@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Insomniac Daemons: a heavy-lidded eye that never quite closes,
+       with a GPU chip for a pupil. Idle, but always watching. -->
+  <defs>
+    <linearGradient id="lid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c3bdff"/>
+      <stop offset="1" stop-color="#8a82e0"/>
+    </linearGradient>
+    <clipPath id="eye">
+      <path d="M7 34Q32 9 57 34Q32 59 7 34Z"/>
+    </clipPath>
+  </defs>
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="#161f45" stroke="#3a4688" stroke-width="2"/>
+  <path d="M18 50Q32 56 46 50" fill="none" stroke="#3a4688" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M7 34Q32 9 57 34Q32 59 7 34Z" fill="#1e2857"/>
+  <g clip-path="url(#eye)">
+    <path d="M21 33h4M21 39h4M39 33h4M39 39h4M29 43v4M35 43v4" stroke="#5fd3c0" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="25" y="29" width="14" height="14" rx="3" fill="#5fd3c0"/>
+    <rect x="29.5" y="33.5" width="5" height="5" rx="1" fill="#161f45"/>
+  </g>
+  <path d="M7 34Q32 9 57 34Q32 59 7 34Z" fill="none" stroke="#8a82e0" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M7 34Q32 9 57 34Q32 24 7 34Z" fill="url(#lid)" stroke="#8a82e0" stroke-width="3.5" stroke-linejoin="round"/>
+</svg>
