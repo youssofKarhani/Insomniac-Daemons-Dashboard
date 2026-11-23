@@ -1,3 +1,4 @@
+import { ASSEMBLIES } from "../content/assemblies";
 import { OBJECT_IDS, OBJECTS } from "../content/components";
 import { currentWorld, useDashboard } from "../store";
 import { describe } from "./describe";
@@ -7,6 +8,7 @@ export function Inspector() {
   const select = useDashboard((s) => s.select);
   const mode = useDashboard((s) => s.mode);
   const line = useDashboard((s) => (s.selected ? describe(s.selected, currentWorld(s)) : ""));
+  const openTeardown = useDashboard((s) => s.setTeardown);
   if (!selected) return null;
   const info = OBJECTS[selected];
   const i = OBJECT_IDS.indexOf(selected);
@@ -26,6 +28,11 @@ export function Inspector() {
         {line}
       </p>
       <p>{info.plain}</p>
+      {ASSEMBLIES[selected] && (
+        <button className="ghost teardown-open" onClick={() => openTeardown(selected)}>
+          Take it apart →
+        </button>
+      )}
       {mode === "live" && <p className="muted small">Live data: {info.live}</p>}
       <details>
         <summary>How it works</summary>

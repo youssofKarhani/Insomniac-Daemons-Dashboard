@@ -11,6 +11,7 @@ import { StatusLine } from "./StatusLine";
 import { Tour } from "./Tour";
 import { Schematic } from "./Schematic";
 import { TOUR } from "../content/tour";
+import { Teardown } from "../teardown/Teardown";
 
 function hasWebGL(): boolean {
   try {
@@ -89,6 +90,11 @@ function useKeyboard() {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
       const s = useDashboard.getState();
+      if (s.teardown !== null) {
+        // The teardown view has its own controls; Escape closes it and nothing else.
+        if (e.key === "Escape") s.setTeardown(null);
+        return;
+      }
       if (s.tour !== null) {
         // During the tour the arrows move between stops; Escape leaves it.
         if (e.key === "ArrowRight" && s.tour < TOUR.length - 1) s.tourGo(s.tour + 1);
@@ -187,6 +193,7 @@ export function App() {
       <Ledger />
       {touring ? <Tour /> : mode === "replay" && <ReplayBar />}
       {logOpen && <EventLog onClose={() => setLogOpen(false)} />}
+      {webgl && <Teardown />}
     </div>
   );
 }

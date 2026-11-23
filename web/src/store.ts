@@ -62,6 +62,8 @@ interface DashboardStore {
   reducedMotion: boolean;
   /** 3D desk or 2D schematic. Both draw the same world state. */
   view: View;
+  /** Object shown taken apart in the teardown view, or null. */
+  teardown: ObjectId | null;
 
   live: { status: LiveStatus; generatedAt?: number; run?: LiveDoc["run"]; exporterAt?: number; error?: string };
   recorded: RunSummary[];
@@ -82,6 +84,7 @@ interface DashboardStore {
   select: (id: ObjectId | null) => void;
   setLabels: (on: boolean) => void;
   setView: (v: View) => void;
+  setTeardown: (id: ObjectId | null) => void;
   refreshLive: () => Promise<void>;
   refreshRuns: () => Promise<void>;
   refreshCosts: () => Promise<void>;
@@ -147,6 +150,7 @@ export const useDashboard = create<DashboardStore>((set, get) => ({
   labels: typeof window === "undefined" || window.innerWidth >= 1280,
   reducedMotion: reducedMotionQuery?.matches ?? false,
   view: savedView(),
+  teardown: null,
 
   live: { status: DATA_URL ? "connecting" : "off" },
   recorded: [],
@@ -250,6 +254,7 @@ export const useDashboard = create<DashboardStore>((set, get) => ({
     get().seek(next);
   },
   select: (selected) => set({ selected }),
+  setTeardown: (teardown) => set({ teardown }),
   setLabels: (labels) => set({ labels }),
   setView: (view) => {
     set({ view });

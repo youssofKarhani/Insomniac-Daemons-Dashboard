@@ -135,7 +135,10 @@ function DemandDriver() {
   const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
     demand.invalidate = invalidate;
-    const unsub = useDashboard.subscribe(() => wake(SETTLE_MS));
+    // While the teardown view covers the desk, the desk draws nothing.
+    const unsub = useDashboard.subscribe((s) => {
+      if (s.teardown === null) wake(SETTLE_MS);
+    });
     wake(SETTLE_MS);
     return () => {
       unsub();
@@ -143,7 +146,7 @@ function DemandDriver() {
     };
   }, [invalidate]);
   useFrame(() => {
-    if (performance.now() < demand.until) invalidate();
+    if (performance.now() < demand.until && useDashboard.getState().teardown === null) invalidate();
   });
   return null;
 }

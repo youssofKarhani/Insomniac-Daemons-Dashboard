@@ -2,6 +2,7 @@ import { Edges, Html, type EdgesRef } from "@react-three/drei";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
+import { ASSEMBLIES } from "../content/assemblies";
 import { OBJECTS, type ObjectId } from "../content/components";
 import { worldAt, type WorldState } from "../model/state";
 import { useDashboard } from "../store";
@@ -299,8 +300,14 @@ export function Pickable({
     e.stopPropagation();
     select(selected ? null : id);
   };
+  const onDoubleClick = (e: ThreeEvent<MouseEvent>) => {
+    if (!ASSEMBLIES[id]) return;
+    e.stopPropagation();
+    select(id);
+    useDashboard.getState().setTeardown(id);
+  };
   return (
-    <group position={position} onPointerOver={onOver} onPointerOut={onOut} onClick={onClick}>
+    <group position={position} onPointerOver={onOver} onPointerOut={onOut} onClick={onClick} onDoubleClick={onDoubleClick}>
       {shadow && footprint[0] > 0.2 && footprint[1] > 0.2 && <ContactShadow size={footprint} />}
       {children}
       <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
